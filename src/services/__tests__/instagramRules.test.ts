@@ -116,12 +116,24 @@ export function runInstagramRulesTests(): {
   assert(dmPostEval.isAllowed === true, 'Post sent in DM is allowed');
   assert(dmPostEval.category === 'saved', 'Post sent in DM has category "saved"');
 
-  // 9. Saved exceptions: Single post opened from Saved grid is allowed
+  // 9. Saved exceptions: Single post & single reel opened from Saved grid are allowed
   const savedPostEval = evaluateInstagramUrl('https://www.instagram.com/p/C-4a9BvO5e1/', {
     isFromSaved: true,
   });
   assert(savedPostEval.isAllowed === true, 'Post opened from Saved is allowed');
   assert(savedPostEval.category === 'saved', 'Post opened from Saved has category "saved"');
+
+  const savedReelEval = evaluateInstagramUrl('https://www.instagram.com/reel/C18yZw9L3xk/', {
+    isFromSaved: true,
+  });
+  assert(savedReelEval.isAllowed === true, 'Reel opened from Saved is allowed');
+  assert(savedReelEval.category === 'saved', 'Reel opened from Saved has category "saved"');
+
+  const savedAuthorPostEval = evaluateInstagramUrl('https://www.instagram.com/natgeo/p/C-4a9BvO5e1/', {
+    isFromSaved: true,
+  });
+  assert(savedAuthorPostEval.isAllowed === true, 'Author subpath post opened from Saved is allowed');
+  assert(savedAuthorPostEval.category === 'saved', 'Author subpath post has category "saved"');
 
   // 10. Stories tab home page exception: Stories tray on / is allowed when isStoriesContext is true
   const storiesTrayEval = evaluateInstagramUrl('https://www.instagram.com/', {

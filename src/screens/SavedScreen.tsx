@@ -57,7 +57,11 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     ? `https://www.instagram.com/${instagramUsername}/saved/`
     : `https://www.instagram.com/saved/all-posts/`;
 
-  const isViewingSingleSavedPost = currentUrl.includes('/p/');
+  const isViewingSingleSavedPost =
+    currentUrl.includes('/p/') ||
+    currentUrl.includes('/reel/') ||
+    currentUrl.includes('/reels/') ||
+    currentUrl.includes('/tv/');
 
   // Android Back Button handler for Saved
   useEffect(() => {
@@ -110,7 +114,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           <View style={styles.headerRightRow}>
             <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
               <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
-                {isViewingSingleSavedPost ? 'Post' : 'Saved'}
+                {currentUrl.includes('/reel/') || currentUrl.includes('/reels/') ? 'Reel' : isViewingSingleSavedPost ? 'Post' : 'Saved'}
               </Text>
             </View>
             <TouchableOpacity

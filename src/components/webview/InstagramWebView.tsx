@@ -220,27 +220,48 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         cacheEnabled={true}
         cacheMode="LOAD_DEFAULT"
         androidLayerType="hardware"
-        injectedJavaScriptBeforeContentLoaded={isFromDM ? `${INJECTED_INSTAGRAM_CSS}\n${SINGLE_REEL_LOCK_JS}` : INJECTED_INSTAGRAM_CSS}
+        injectedJavaScriptBeforeContentLoaded={isFromDM || isFromSaved ? `${INJECTED_INSTAGRAM_CSS}\n${SINGLE_REEL_LOCK_JS}` : INJECTED_INSTAGRAM_CSS}
         injectedJavaScript={`
           (function() {
             try {
               function detectUser() {
                 var links = document.querySelectorAll('a[href]');
+                var username = null;
+                var avatarUrl = null;
                 for (var i = 0; i < links.length; i++) {
                   var h = links[i].getAttribute('href');
                   if (h && h.startsWith('/') && h.endsWith('/') && h.split('/').filter(Boolean).length === 1) {
                     var u = h.replace(/\\//g, '');
                     if (!['explore', 'direct', 'reels', 'stories', 'accounts', 'saved', 'p', 'settings', 'help', 'privacy', 'terms'].includes(u.toLowerCase())) {
-                      if (links[i].querySelector('img') || links[i].querySelector('svg[aria-label="Profile"]')) {
-                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DETECTED_USERNAME', username: u }));
-                        return;
+                      var img = links[i].querySelector('img');
+                      if (img && img.src && !img.src.includes('data:image/svg')) {
+                        username = u;
+                        avatarUrl = img.src;
+                        break;
+                      }
+                      if (links[i].querySelector('svg[aria-label="Profile"]')) {
+                        username = u;
                       }
                     }
                   }
                 }
+                if (!avatarUrl) {
+                  var profileImgs = document.querySelectorAll('img[alt*="profile picture"], img[alt*="Profile picture"]');
+                  if (profileImgs.length > 0 && profileImgs[0].src && !profileImgs[0].src.includes('data:image/svg')) {
+                    avatarUrl = profileImgs[0].src;
+                  }
+                }
+                if (username || avatarUrl) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify({
+                    type: 'DETECTED_USER_PROFILE',
+                    username: username,
+                    avatarUrl: avatarUrl
+                  }));
+                }
               }
               setTimeout(detectUser, 1000);
-              setTimeout(detectUser, 3000);
+              setTimeout(detectUser, 2500);
+              setTimeout(detectUser, 5000);
             } catch(e) {}
           })();
           true;
@@ -248,9 +269,9 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
-            if (data.type === 'DETECTED_USERNAME' && data.username) {
-              if (onUsernameDetected) onUsernameDetected(data.username);
-              useAppStore.getState().setInstagramLoggedIn(true, data.username);
+            if ((data.type === 'DETECTED_USERNAME' || data.type === 'DETECTED_USER_PROFILE') && (data.username || data.avatarUrl)) {
+              if (data.username && onUsernameDetected) onUsernameDetected(data.username);
+              useAppStore.getState().setInstagramLoggedIn(true, data.username, data.avatarUrl);
             }
           } catch {}
         }}
@@ -373,12 +394,12 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
           category={blockedState.category}
           customMessage={blockedState.message}
           onReturnToAllowed={handleReturnToAllowed}
-          returnButtonTitle="Return to Messages"
+          returnButtonTitle={isFromSaved ? "Return to Saved" : isStoriesContext ? "Return to Stories" : "Return to Messages"}
         />
       )}
 
       {/* Floating glass Back to Chat button when viewing single reel or post from DM */}
-      {isFromDM && (currentUrl.includes('/reel/') || currentUrl.includes('/p/')) && (
+      {isFromDM && (currentUrl.includes('/reel/') || currentUrl.includes('/reels/') || currentUrl.includes('/p/') || currentUrl.includes('/tv/')) && (
         <TouchableOpacity
           activeOpacity={0.85}
           style={styles.floatingBackToChatBtn}
@@ -400,6 +421,33 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
           >
             <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
             <Text style={[typography.captionBold, { color: '#FFFFFF' }]}>Back to Chat</Text>
+          </GlassSurface>
+        </TouchableOpacity>
+      )}
+
+      {/* Floating glass Back to Saved button when viewing single reel or post in Saved */}
+      {isFromSaved && (currentUrl.includes('/reel/') || currentUrl.includes('/reels/') || currentUrl.includes('/p/') || currentUrl.includes('/tv/')) && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.floatingBackToChatBtn}
+          onPress={() => {
+            if (canGoBack && webViewRef.current) {
+              webViewRef.current.goBack();
+            } else if (webViewRef.current) {
+              webViewRef.current.injectJavaScript(`window.location.href = "${fallbackUrl}"; true;`);
+            }
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={45}
+            borderRadius={20}
+            elevation={6}
+            style={styles.floatingBackToChatInner}
+          >
+            <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={[typography.captionBold, { color: '#FFFFFF' }]}>Back to Saved</Text>
           </GlassSurface>
         </TouchableOpacity>
       )}

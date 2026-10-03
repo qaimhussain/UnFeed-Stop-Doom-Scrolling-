@@ -49,6 +49,7 @@ const STORAGE_KEYS = {
   IS_DEMO_MODE: 'unfeed_is_demo_mode',
   IS_IG_LOGGED_IN: 'unfeed_is_ig_logged_in',
   IG_USERNAME: 'unfeed_ig_username',
+  IG_AVATAR_URL: 'unfeed_ig_avatar_url',
 };
 
 
@@ -90,7 +91,8 @@ interface AppState {
   // Actions
   initStore: () => Promise<void>;
   setDemoMode: (enabled: boolean) => Promise<void>;
-  setInstagramLoggedIn: (loggedIn: boolean, username?: string | null) => Promise<void>;
+  setInstagramLoggedIn: (loggedIn: boolean, username?: string | null, avatarUrl?: string | null) => Promise<void>;
+  setUserAvatar: (avatarUrl: string) => Promise<void>;
   logoutInstagram: () => Promise<void>;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   checkAndRefreshFocusWindow: () => Promise<void>;
@@ -228,6 +230,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         savedIsDemoMode,
         savedIsIgLoggedIn,
         savedIgUsername,
+        savedIgAvatarUrl,
       ] = await Promise.all([
         storageService.getItem<ShortNote>(STORAGE_KEYS.USER_NOTE, INITIAL_USER_NOTE),
         storageService.getItem<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, MOCK_CONVERSATIONS),
@@ -258,6 +261,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storageService.getItem<boolean>(STORAGE_KEYS.IS_DEMO_MODE, false),
         storageService.getItem<boolean>(STORAGE_KEYS.IS_IG_LOGGED_IN, false),
         storageService.getItem<string | null>(STORAGE_KEYS.IG_USERNAME, null),
+        storageService.getItem<string | null>(STORAGE_KEYS.IG_AVATAR_URL, null),
       ]);
 
       const activeScreenTime: ScreenTimeState =
@@ -308,6 +312,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       set({
         isInitialized: true,
+        currentUser: {
+          ...CURRENT_USER,
+          username: savedIgUsername || CURRENT_USER.username,
+          avatarUrl: savedIgAvatarUrl || CURRENT_USER.avatarUrl,
+        },
         userNote: savedUserNote,
         conversations: savedConversations,
         messagesByChat: savedMessages,
@@ -346,13 +355,21 @@ export const useAppStore = create<AppState>((set, get) => ({
     await storageService.setItem(STORAGE_KEYS.IS_DEMO_MODE, enabled);
   },
 
-  setInstagramLoggedIn: async (loggedIn: boolean, username?: string | null) => {
+  setInstagramLoggedIn: async (loggedIn: boolean, username?: string | null, avatarUrl?: string | null) => {
     const currentUsername = get().instagramUsername;
     const resolvedUsername = username !== undefined ? username : currentUsername;
+    const currentAvatar = get().currentUser.avatarUrl;
+    const resolvedAvatar = avatarUrl || currentAvatar;
+
     set({
       isInstagramLoggedIn: loggedIn,
       isDemoMode: loggedIn ? false : get().isDemoMode,
       instagramUsername: resolvedUsername,
+      currentUser: {
+        ...get().currentUser,
+        username: resolvedUsername || get().currentUser.username,
+        avatarUrl: resolvedAvatar,
+      },
     });
     await Promise.all([
       storageService.setItem(STORAGE_KEYS.IS_IG_LOGGED_IN, loggedIn),
@@ -360,17 +377,32 @@ export const useAppStore = create<AppState>((set, get) => ({
       resolvedUsername !== null
         ? storageService.setItem(STORAGE_KEYS.IG_USERNAME, resolvedUsername)
         : storageService.removeItem(STORAGE_KEYS.IG_USERNAME),
+      resolvedAvatar
+        ? storageService.setItem(STORAGE_KEYS.IG_AVATAR_URL, resolvedAvatar)
+        : Promise.resolve(),
     ]);
+  },
+
+  setUserAvatar: async (avatarUrl: string) => {
+    set({
+      currentUser: {
+        ...get().currentUser,
+        avatarUrl,
+      },
+    });
+    await storageService.setItem(STORAGE_KEYS.IG_AVATAR_URL, avatarUrl);
   },
 
   logoutInstagram: async () => {
     set({
       isInstagramLoggedIn: false,
       instagramUsername: null,
+      currentUser: CURRENT_USER,
     });
     await Promise.all([
       storageService.setItem(STORAGE_KEYS.IS_IG_LOGGED_IN, false),
       storageService.removeItem(STORAGE_KEYS.IG_USERNAME),
+      storageService.removeItem(STORAGE_KEYS.IG_AVATAR_URL),
     ]);
   },
 

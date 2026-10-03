@@ -118,7 +118,7 @@ export function evaluateInstagramUrl(
   }
 
   // 4. Single Post (/p/): Allowed if from Saved or sent in DM conversation; blocked from feed/explore
-  if (path.startsWith('/p/')) {
+  if (path.includes('/p/')) {
     if (options?.isFromDM || options?.isFromSaved) {
       return { isAllowed: true, category: 'saved' };
     }
@@ -130,10 +130,11 @@ export function evaluateInstagramUrl(
   }
 
   // 5. Reels (/reel/ or /reels/):
-  // Single Reel (/reel/): Allowed ONLY when sent in chat (isFromDM)
-  if (path.startsWith('/reel/')) {
-    if (options?.isFromDM) {
-      return { isAllowed: true, category: 'single_reel' };
+  // Single Reel with shortcode: Allowed when sent in chat (isFromDM) or saved (isFromSaved)
+  const isSingleReel = path.includes('/reel/') || (path.includes('/reels/') && path !== '/reels/');
+  if (isSingleReel) {
+    if (options?.isFromDM || options?.isFromSaved) {
+      return { isAllowed: true, category: options?.isFromDM ? 'single_reel' : 'saved' };
     }
     return {
       isAllowed: false,
@@ -143,12 +144,19 @@ export function evaluateInstagramUrl(
   }
 
   // General Reels feed (/reels/): Always blocked
-  if (path.startsWith('/reels/')) {
+  if (path === '/reels/' || path.startsWith('/reels/')) {
     return {
       isAllowed: false,
       category: 'blocked_reels',
       blockMessage: "Reels are hidden by Unfeed to stop doom scrolling.",
     };
+  }
+
+  // IGTV single video (/tv/): Allowed if from DM or Saved
+  if (path.includes('/tv/')) {
+    if (options?.isFromDM || options?.isFromSaved) {
+      return { isAllowed: true, category: 'saved' };
+    }
   }
 
   // 6. Explore (/explore): Always blocked
@@ -208,6 +216,11 @@ export function evaluateInstagramUrl(
     };
   }
 
+  // If navigating from Saved and on a subpath of user's saved items or post
+  if (options?.isFromSaved) {
+    return { isAllowed: true, category: 'saved' };
+  }
+
   return {
     isAllowed: false,
     category: 'blocked_other',
@@ -217,29 +230,55 @@ export function evaluateInstagramUrl(
 
 /**
  * JavaScript string injected into the WebView before content loads
- * to inject custom styling and hide doomscrolling elements.
+ * to inject custom styling, hide doomscrolling elements, and blackout feed on Stories tab.
  */
 export const INJECTED_INSTAGRAM_CSS = [
   '(function() {',
   '  try {',
-  '    var pathname = window.location.pathname || "";',
-  '    var isPostPage = pathname.indexOf("/p/") !== -1;',
-  '    var isHomePage = pathname === "/" || pathname === "";',
   '    var style = document.createElement("style");',
   '    style.id = "unfeed-custom-style";',
   '    var css = [',
   '      "a[href*=\\"/explore\\"], a[href*=\\"/reels\\"], svg[aria-label=\\"Explore\\"], svg[aria-label=\\"Reels\\"], footer { display: none !important; visibility: hidden !important; height: 0 !important; pointer-events: none !important; }",',
   '      "a[href*=\\"play.google.com\\"], a[href*=\\"itunes.apple.com\\"], div[data-nosnippet] { display: none !important; }",',
-  '      "body, html { overscroll-behavior-y: none !important; }"',
+  '      "body, html { overscroll-behavior-y: none !important; }",',
+  '      "html.unfeed-stories-home, body.unfeed-stories-home { overflow-y: hidden !important; touch-action: pan-x !important; height: 100vh !important; position: fixed !important; width: 100% !important; }",',
+  '      "html.unfeed-stories-home article, html.unfeed-stories-home [role=\\"article\\"], html.unfeed-stories-home div[role=\\"feed\\"] { display: none !important; visibility: hidden !important; height: 0 !important; pointer-events: none !important; opacity: 0 !important; }",',
+  '      "article ~ div, div:has(> a[href*=\\"/explore/\\"]), div:has(> a[href*=\\"/reels/\\"]) { display: none !important; }"',
   '    ];',
-  '    if (isHomePage) {',
-  '      css.push("div[role=\\"feed\\"], main section > div > div > article { display: none !important; }");',
-  '    }',
-  '    if (isPostPage) {',
-  '      css.push("article ~ div, div:has(> a[href*=\\"/explore/\\"]), div:has(> a[href*=\\"/reels/\\"]) { display: none !important; }");',
-  '    }',
   '    style.innerHTML = css.join("\\n");',
   '    document.head.appendChild(style);',
+  '    function manageStoriesHomeFeed() {',
+  '      var p = window.location.pathname || "";',
+  '      var isHome = p === "/" || p === "";',
+  '      var isStory = p.indexOf("/stories/") !== -1;',
+  '      var blackout = document.getElementById("unfeed-stories-blackout");',
+  '      if (isHome) {',
+  '        if (document.documentElement) document.documentElement.classList.add("unfeed-stories-home");',
+  '        if (document.body) document.body.classList.add("unfeed-stories-home");',
+  '        if (!blackout && document.body) {',
+  '          blackout = document.createElement("div");',
+  '          blackout.id = "unfeed-stories-blackout";',
+  '          blackout.style.cssText = "position:fixed;top:150px;left:0;right:0;bottom:0;background:#000000;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#888888;font-family:-apple-system,BlinkMacSystemFont,sans-serif;pointer-events:all;padding:24px;text-align:center;";',
+  '          blackout.innerHTML = \'<div style="font-size:13px;font-weight:700;color:#999;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Feed Hidden by Unfeed</div><div style="font-size:12px;color:#555;">Tap any story above to watch</div>\';',
+  '          document.body.appendChild(blackout);',
+  '        } else if (blackout) {',
+  '          blackout.style.display = "flex";',
+  '        }',
+  '        var articles = document.querySelectorAll("article, [role=\'article\'], div[role=\'feed\']");',
+  '        for (var i = 0; i < articles.length; i++) {',
+  '          articles[i].style.display = "none";',
+  '        }',
+  '      } else {',
+  '        if (document.documentElement) document.documentElement.classList.remove("unfeed-stories-home");',
+  '        if (document.body) document.body.classList.remove("unfeed-stories-home");',
+  '        if (blackout) {',
+  '          blackout.style.display = "none";',
+  '        }',
+  '      }',
+  '    }',
+  '    manageStoriesHomeFeed();',
+  '    setInterval(manageStoriesHomeFeed, 500);',
+  '    window.addEventListener("popstate", manageStoriesHomeFeed);',
   '  } catch(e) {}',
   '})();',
   'true;'
@@ -252,7 +291,7 @@ export const INJECTED_INSTAGRAM_CSS = [
 export const SINGLE_REEL_LOCK_JS = [
   '(function() {',
   '  try {',
-  '    if (window.location.pathname.indexOf("/reel/") === -1) return;',
+  '    if (window.location.pathname.indexOf("/reel/") === -1 && window.location.pathname.indexOf("/reels/") === -1) return;',
   '    function applyScrollLock() {',
   '      if (document.documentElement) {',
   '        document.documentElement.style.setProperty("overflow", "hidden", "important");',

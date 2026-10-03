@@ -94,15 +94,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = () => {
           style={styles.shortNoteContent}
           activeOpacity={0.8}
         >
-          <Avatar url={currentUser.avatarUrl} name={currentUser.fullName} size={44} />
+          <Avatar url={currentUser.avatarUrl} name={currentUser.fullName || currentUser.username} size={46} />
 
           <View style={{ marginLeft: 12, flex: 1 }}>
             <View style={styles.shortNoteTop}>
-              <Text style={[typography.captionBold, { color: colors.textPrimary }]}>
-                24h Status Note
+              <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                {currentUser.username ? `@${currentUser.username}` : currentUser.fullName}
               </Text>
               <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                Visible in DMs
+                24h Status Note
               </Text>
             </View>
 
@@ -113,7 +113,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = () => {
               ]}
               numberOfLines={1}
             >
-              {userNote.text || 'Tap to share a thought with friends...'}
+              {userNote.text || 'Tap to share a thought...'}
             </Text>
           </View>
 
