@@ -30,10 +30,21 @@ interface InstagramLoginScreenProps {
 
 const LOGIN_MONITOR_JS = `
   (function() {
+    var observer = null;
     function notifySuccess(url) {
+      if (observer) {
+        try { observer.disconnect(); } catch(e) {}
+        observer = null;
+      }
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
         window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOGIN_SUCCESS', url: url || window.location.href }));
       }
+    }
+
+    var checkTimer = null;
+    function debouncedCheck() {
+      if (checkTimer) clearTimeout(checkTimer);
+      checkTimer = setTimeout(check, 250);
     }
 
     function check() {
@@ -67,19 +78,22 @@ const LOGIN_MONITOR_JS = `
     if (origPush) {
       history.pushState = function() {
         origPush.apply(this, arguments);
-        setTimeout(check, 300);
+        debouncedCheck();
       };
     }
     var origReplace = history.replaceState;
     if (origReplace) {
       history.replaceState = function() {
         origReplace.apply(this, arguments);
-        setTimeout(check, 300);
+        debouncedCheck();
       };
     }
 
-    setInterval(check, 1000);
-    setTimeout(check, 1000);
+    if (window.MutationObserver && document.body) {
+      observer = new MutationObserver(debouncedCheck);
+      observer.observe(document.body, { childList: true, subtree: true });
+    }
+    debouncedCheck();
   })();
   true;
 `;

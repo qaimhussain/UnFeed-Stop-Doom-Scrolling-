@@ -13,9 +13,11 @@ export const BottomTabNavigator: React.FC = () => {
   return (
     <Tab.Navigator
       initialRouteName="Messages"
+      detachInactiveScreens={false}
       tabBar={(props) => <FloatingGlassTabBar {...props} />}
       screenOptions={{
         headerShown: false,
+        lazy: true,
       }}
     >
       <Tab.Screen name="Messages" component={MessagesScreen} />

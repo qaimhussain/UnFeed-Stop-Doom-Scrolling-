@@ -108,11 +108,6 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
 
   const renderHeader = () => (
     <View>
-      {/* Session Timer Pill if active */}
-      <View style={styles.sessionTimerWrap}>
-        <SessionTimerIndicator />
-      </View>
-
       {/* Notes Bar */}
       <NotesBar
         currentUser={currentUser}

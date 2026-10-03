@@ -19,6 +19,7 @@ import {
 } from '../../config/instagramRules';
 import { BlockedDoomscrollCard } from './BlockedDoomscrollCard';
 import { GlassSurface } from '../common/GlassSurface';
+import { ChatSkeletonRow, Skeleton } from '../common/SkeletonLoader';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAppStore } from '../../store/useAppStore';
 
@@ -188,6 +189,9 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
         domStorageEnabled={true}
         javaScriptEnabled={true}
         thirdPartyCookiesEnabled={true}
+        cacheEnabled={true}
+        cacheMode="LOAD_DEFAULT"
+        androidLayerType="hardware"
         injectedJavaScriptBeforeContentLoaded={INJECTED_INSTAGRAM_CSS}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={handleNavigationStateChange}
@@ -210,25 +214,39 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
         pullToRefreshEnabled={true}
       />
 
-      {/* Glass Loading Indicator */}
+      {/* Native Skeleton / Shimmer Loader while WebView loads */}
       {isLoading && !blockedState.isBlocked && !hasError && (
-        <View style={styles.loadingOverlay} pointerEvents="none">
-          <GlassSurface
-            borderRadius={20}
-            style={styles.loadingCard}
-            elevation={4}
-          >
-            <ActivityIndicator size="small" color="#0095F6" />
-            <Text
-              style={[
-                typography.caption,
-                styles.loadingText,
-                { color: colors.textSecondary },
-              ]}
+        <View style={[styles.skeletonOverlay, { backgroundColor: colors.background }]} pointerEvents="none">
+          <View style={[styles.skeletonHeader, { borderBottomColor: colors.divider }]}>
+            <Skeleton width={140} height={18} borderRadius={6} />
+            <Skeleton width={28} height={28} borderRadius={14} />
+          </View>
+          <View style={styles.skeletonRows}>
+            <ChatSkeletonRow />
+            <ChatSkeletonRow />
+            <ChatSkeletonRow />
+            <ChatSkeletonRow />
+            <ChatSkeletonRow />
+            <ChatSkeletonRow />
+          </View>
+          <View style={styles.loadingPillWrap}>
+            <GlassSurface
+              borderRadius={20}
+              style={styles.loadingCard}
+              elevation={4}
             >
-              Loading Instagram...
-            </Text>
-          </GlassSurface>
+              <ActivityIndicator size="small" color="#0095F6" />
+              <Text
+                style={[
+                  typography.caption,
+                  styles.loadingText,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                Connecting...
+              </Text>
+            </GlassSurface>
+          </View>
         </View>
       )}
 
@@ -310,6 +328,33 @@ const styles = StyleSheet.create({
   webView: {
     flex: 1,
     backgroundColor: 'transparent',
+  },
+  skeletonOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
+  },
+  skeletonHeader: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  skeletonRows: {
+    paddingTop: 8,
+  },
+  loadingPillWrap: {
+    position: 'absolute',
+    bottom: 24,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingOverlay: {
     position: 'absolute',
