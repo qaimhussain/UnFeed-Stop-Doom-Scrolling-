@@ -376,6 +376,11 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         setSupportMultipleWindows={false}
         allowsBackForwardNavigationGestures={true}
         pullToRefreshEnabled={true}
+        allowFileAccess={false}
+        allowFileAccessFromFileURLs={false}
+        allowUniversalAccessFromFileURLs={false}
+        geolocationEnabled={false}
+        mixedContentMode="never"
       />
 
       {/* Sleek top glowing progress bar on all loads */}

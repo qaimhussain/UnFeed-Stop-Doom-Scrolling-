@@ -16,7 +16,6 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
-import { GlassBar } from '../components/common/GlassBar';
 import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { SavedGridThumbnail } from '../components/saved/SavedGridThumbnail';
 import { CollectionFolderItem } from '../components/saved/CollectionFolderItem';
@@ -94,8 +93,8 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-        {/* Minimal Glass Top Bar with Wordmark */}
-        <GlassBar position="top" style={[styles.realHeader, { borderBottomWidth: 0 }]}>
+        {/* Minimal Clean Top Bar with Wordmark */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
           {isViewingSingleSavedPost ? (
             <TouchableOpacity
               activeOpacity={0.7}
@@ -109,7 +108,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
           ) : (
-            <UnfeedWordmark fontSize={32} useGradient={true} />
+            <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
           )}
 
           <View style={styles.headerRightRow}>
@@ -128,7 +127,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-        </GlassBar>
+        </View>
 
         {/* Real Instagram Saved Posts WebView */}
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>

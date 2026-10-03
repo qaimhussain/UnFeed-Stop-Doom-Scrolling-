@@ -17,7 +17,6 @@ import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
 import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
-import { GlassBar } from '../components/common/GlassBar';
 import { SearchBar } from '../components/common/SearchBar';
 import { CaughtUpNotice } from '../components/common/CaughtUpNotice';
 import { ChatSkeletonRow } from '../components/common/SkeletonLoader';
@@ -133,9 +132,9 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-        {/* Minimal Glass Top Bar */}
-        <GlassBar position="top" style={[styles.realHeader, { borderBottomWidth: 0 }]}>
-          <UnfeedWordmark fontSize={32} useGradient={true} />
+        {/* Minimal Clean Top Bar */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
           <TouchableOpacity
             activeOpacity={0.7}
             style={styles.headerIconButton}
@@ -145,7 +144,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
           >
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
-        </GlassBar>
+        </View>
 
         {/* Real Instagram Messages WebView */}
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>

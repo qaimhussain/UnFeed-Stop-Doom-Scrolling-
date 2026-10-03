@@ -8,6 +8,7 @@ interface UnfeedWordmarkProps {
   fontSize?: number;
   color?: string;
   useGradient?: boolean;
+  align?: 'left' | 'center';
   style?: ViewStyle;
 }
 
@@ -15,6 +16,7 @@ export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
   fontSize = 32,
   color,
   useGradient = true,
+  align = 'center',
   style,
 }) => {
   const [fontsLoaded] = useFonts({
@@ -29,6 +31,7 @@ export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
     fontWeight: '400',
     includeFontPadding: false,
     letterSpacing: -0.2,
+    textAlign: align,
   };
 
   // Instagram diagonal gradient
@@ -37,7 +40,13 @@ export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
   // If not using gradient, render pure iconic Instagram cursive wordmark (clean, crisp, no clipping)
   if (!useGradient) {
     return (
-      <View style={[styles.simpleContainer, style]}>
+      <View
+        style={[
+          styles.simpleContainer,
+          { alignItems: align === 'center' ? 'center' : 'flex-start' },
+          style,
+        ]}
+      >
         <Text style={[fontStyle, { color: color || '#FFFFFF' }]}>
           Unfeed
         </Text>
@@ -74,12 +83,12 @@ export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
   const height = fontSize * 1.5;
 
   return (
-    <View style={[{ width, height, justifyContent: 'center' }, style]}>
+    <View style={[{ width, height, justifyContent: 'center', alignItems: align === 'center' ? 'center' : 'flex-start' }, style]}>
       <MaskedView
         style={StyleSheet.absoluteFill}
         maskElement={
-          <View style={styles.maskContainer}>
-            <Text style={[fontStyle, { color: '#000000' }]}>
+          <View style={[styles.maskContainer, { alignItems: align === 'center' ? 'center' : 'flex-start' }]}>
+            <Text style={[fontStyle, { color: '#000000', width: '100%' }]}>
               Unfeed
             </Text>
           </View>
@@ -99,14 +108,13 @@ export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
 const styles = StyleSheet.create({
   simpleContainer: {
     justifyContent: 'center',
-    alignItems: 'flex-start',
     paddingVertical: 2,
     paddingHorizontal: 2,
   },
   maskContainer: {
     backgroundColor: 'transparent',
     justifyContent: 'center',
-    alignItems: 'flex-start',
     flex: 1,
+    width: '100%',
   },
 });

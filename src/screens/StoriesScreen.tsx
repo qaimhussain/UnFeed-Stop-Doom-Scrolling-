@@ -15,7 +15,6 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
-import { GlassBar } from '../components/common/GlassBar';
 import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { StoryCardItem } from '../components/stories/StoryCardItem';
 import { StoryViewerModal } from '../components/stories/StoryViewerModal';
@@ -97,9 +96,9 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-        {/* Minimal Glass Top Bar with Wordmark */}
-        <GlassBar position="top" style={[styles.realHeader, { borderBottomWidth: 0 }]}>
-          <UnfeedWordmark fontSize={32} useGradient={true} />
+        {/* Minimal Clean Top Bar with Wordmark */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
           <View style={styles.headerRightRow}>
             <GlassSurface
               useRealBlur={true}
@@ -138,7 +137,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
               <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-        </GlassBar>
+        </View>
 
         {/* Real Instagram Stories Tray & Viewer (Feed hidden via CSS) */}
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>

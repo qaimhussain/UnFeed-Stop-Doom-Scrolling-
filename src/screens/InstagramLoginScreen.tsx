@@ -10,6 +10,7 @@ import {
   Platform,
   Animated,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
@@ -244,21 +245,17 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       {/* ── Main content ── */}
       <View style={styles.mainContent}>
 
-        {/* Hero: Instagram gradient ring icon + wordmark */}
+        {/* Hero: Custom glowing app logo + wordmark */}
         <View style={styles.heroSection}>
-          {/* Story-ring gradient circle around logo */}
-          <LinearGradient
-            colors={['#FEDA75', '#FA7E1E', '#D62976', '#962FBF', '#4F5BD5']}
-            start={{ x: 0, y: 1 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.gradientRing}
-          >
-            <View style={[styles.ringInner, { backgroundColor: isDark ? '#000000' : '#FAFAFA' }]}>
-              <Ionicons name="paper-plane" size={30} color={colors.accent} />
-            </View>
-          </LinearGradient>
+          <View style={[styles.appLogoCard, { borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]}>
+            <Image
+              source={require('../../assets/app-icon-original.jpg')}
+              style={styles.appLogoImg}
+              resizeMode="cover"
+            />
+          </View>
 
-          <UnfeedWordmark fontSize={46} useGradient={true} />
+          <UnfeedWordmark fontSize={46} useGradient={true} align="center" style={{ marginTop: 14 }} />
           <Text style={[styles.tagline, { color: colors.textSecondary }]}>
             All the connection. None of the scrolling.
           </Text>
@@ -411,6 +408,11 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
               style={styles.modalWebView}
               setSupportMultipleWindows={false}
               originWhitelist={['*']}
+              allowFileAccess={false}
+              allowFileAccessFromFileURLs={false}
+              allowUniversalAccessFromFileURLs={false}
+              geolocationEnabled={false}
+              mixedContentMode="never"
             />
 
             {isLoadingWebView && (
@@ -500,21 +502,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 12,
   },
-  gradientRing: {
-    width: 76,
-    height: 76,
-    borderRadius: 38,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    padding: 3,
+  appLogoCard: {
+    width: 82,
+    height: 82,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 1,
+    shadowColor: '#D62976',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
   },
-  ringInner: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    alignItems: 'center',
-    justifyContent: 'center',
+  appLogoImg: {
+    width: '100%',
+    height: '100%',
   },
   wordmark: {
     fontSize: 36,
