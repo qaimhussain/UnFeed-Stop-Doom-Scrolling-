@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -27,8 +27,8 @@ export const LockedTabScreen: React.FC<LockedTabScreenProps> = ({
   const { colors, typography, spacing } = useTheme();
   const resetStoryTime = useAppStore((state) => state.resetStoryTime);
 
-  const scaleAnim = useRef(new Animated.Value(0.92)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(0.92));
+  const [opacityAnim] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.parallel([

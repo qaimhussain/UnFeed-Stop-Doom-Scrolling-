@@ -22,6 +22,7 @@ interface MessageBubbleProps {
   isLastInGroup?: boolean;
   onReply?: (message: Message) => void;
   onReact?: (messageId: string, emoji: string) => void;
+  onOpenPostOrReel?: (url: string) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -29,6 +30,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   isLastInGroup = false,
   onReply,
   onReact,
+  onOpenPostOrReel,
 }) => {
   const { colors, typography, spacing } = useTheme();
   const [showPicker, setShowPicker] = useState(false);
@@ -136,7 +138,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
 
             {message.mediaType === 'shared_post' && message.sharedPost && (
-              <SharedPostCard post={message.sharedPost} isSentByMe={true} />
+              <SharedPostCard
+                post={message.sharedPost}
+                isSentByMe={true}
+                onPress={() => onOpenPostOrReel?.(`https://www.instagram.com/p/${message.sharedPost?.id || 'reel'}/`)}
+              />
             )}
 
             {message.text && (
@@ -163,7 +169,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             )}
 
             {message.mediaType === 'shared_post' && message.sharedPost && (
-              <SharedPostCard post={message.sharedPost} isSentByMe={false} />
+              <SharedPostCard
+                post={message.sharedPost}
+                isSentByMe={false}
+                onPress={() => onOpenPostOrReel?.(`https://www.instagram.com/p/${message.sharedPost?.id || 'reel'}/`)}
+              />
             )}
 
             {message.text && (

@@ -20,6 +20,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Avatar } from '../components/common/Avatar';
 import { MessageBubble } from '../components/messages/MessageBubble';
 import { GlassSurface } from '../components/focus/GlassSurface';
+import { SingleReelModal } from '../components/messages/SingleReelModal';
 import { Message } from '../types';
 
 interface ChatDetailScreenProps {
@@ -48,6 +49,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [recordDuration, setRecordDuration] = useState(0);
+  const [activeReelUrl, setActiveReelUrl] = useState<string | null>(null);
   const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const flatListRef = useRef<FlatList>(null);
 
@@ -67,7 +69,6 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
   // Voice recording simulation
   useEffect(() => {
     if (isRecordingVoice) {
-      setRecordDuration(0);
       recordTimerRef.current = setInterval(() => {
         setRecordDuration((prev) => prev + 1);
       }, 1000);
@@ -232,6 +233,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
               isLastInGroup={isLastInGroup}
               onReply={(msg) => setReplyingTo(msg)}
               onReact={(msgId, emoji) => reactToMessage(conversationId, msgId, emoji)}
+              onOpenPostOrReel={(url) => setActiveReelUrl(url)}
             />
           );
         }}
@@ -344,7 +346,10 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
               />
 
               <TouchableOpacity
-                onPress={() => setIsRecordingVoice(true)}
+                onPress={() => {
+                  setRecordDuration(0);
+                  setIsRecordingVoice(true);
+                }}
                 style={styles.micBtn}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
@@ -375,6 +380,13 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
         </GlassSurface>
       )}
       </KeyboardAvoidingView>
+
+      {/* Dedicated Single Reel Viewer Modal */}
+      <SingleReelModal
+        visible={!!activeReelUrl}
+        url={activeReelUrl}
+        onClose={() => setActiveReelUrl(null)}
+      />
     </SafeAreaView>
   );
 };

@@ -58,9 +58,9 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
   const resumeStoryViewingSession = useAppStore((state) => state.resumeStoryViewingSession);
   const endStoryViewingSession = useAppStore((state) => state.endStoryViewingSession);
 
-  const progressAnim = useRef(new Animated.Value(0)).current;
+  const [progressAnim] = useState(() => new Animated.Value(0));
   const currentProgress = useRef(0);
-  const translateY = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(0));
 
   // Handle Android back button
   useEffect(() => {
@@ -107,16 +107,23 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     }
   }, [visible, remainingSeconds]);
 
-  // Sync initial index
-  useEffect(() => {
+  // Sync initial index on open
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
     if (visible) {
       setCurrentUserIndex(initialIndex);
       setCurrentSlideIndex(0);
+    }
+  }
+
+  useEffect(() => {
+    if (visible) {
       progressAnim.setValue(0);
       currentProgress.current = 0;
       translateY.setValue(0);
     }
-  }, [visible, initialIndex]);
+  }, [visible, progressAnim, translateY]);
 
   const currentStory = stories[currentUserIndex];
   const slides = currentStory?.slides || [];
@@ -127,37 +134,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     if (visible && currentStory && !currentStory.isSeen) {
       markStorySeen(currentStory.id);
     }
-  }, [visible, currentStory]);
-
-  // Slide timer animation
-  useEffect(() => {
-    if (!visible || !currentSlide) return;
-
-    if (isPaused) {
-      progressAnim.stopAnimation((val) => {
-        currentProgress.current = val;
-      });
-      return;
-    }
-
-    const remainingTime = (1 - currentProgress.current) * SLIDE_DURATION;
-
-    const anim = Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: Math.max(100, remainingTime),
-      useNativeDriver: false,
-    });
-
-    anim.start(({ finished }) => {
-      if (finished) {
-        goToNextSlide();
-      }
-    });
-
-    return () => {
-      anim.stop();
-    };
-  }, [visible, currentUserIndex, currentSlideIndex, isPaused]);
+  }, [visible, currentStory, markStorySeen]);
 
   const goToNextSlide = () => {
     progressAnim.setValue(0);
@@ -207,8 +184,39 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
     }
   };
 
+  // Slide timer animation
+  useEffect(() => {
+    if (!visible || !currentSlide) return;
+
+    if (isPaused) {
+      progressAnim.stopAnimation((val) => {
+        currentProgress.current = val;
+      });
+      return;
+    }
+
+    const remainingTime = (1 - currentProgress.current) * SLIDE_DURATION;
+
+    const anim = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: Math.max(100, remainingTime),
+      useNativeDriver: false,
+    });
+
+    anim.start(({ finished }) => {
+      if (finished) {
+        goToNextSlide();
+      }
+    });
+
+    return () => {
+      anim.stop();
+    };
+  }, [visible, currentUserIndex, currentSlideIndex, isPaused, currentSlide, progressAnim]);
+
   // Gestures for swipe down to close (spring physics, scale & corner rounding)
-  const panResponder = useRef(
+  // eslint-disable-next-line react-hooks/refs
+  const [panResponder] = useState(() =>
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dy) > 12 || Math.abs(gestureState.dx) > 30;
@@ -252,7 +260,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
         }
       },
     })
-  ).current;
+  );
 
   const handleSendReply = async () => {
     if (!replyText.trim() || !currentStory) return;

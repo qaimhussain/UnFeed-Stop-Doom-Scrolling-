@@ -17,9 +17,10 @@ import { ImageWithFallback } from '../common/ImageWithFallback';
 interface SharedPostCardProps {
   post: SharedPostPreview;
   isSentByMe?: boolean;
+  onPress?: (post: SharedPostPreview) => void;
 }
 
-export const SharedPostCard: React.FC<SharedPostCardProps> = ({ post, isSentByMe = false }) => {
+export const SharedPostCard: React.FC<SharedPostCardProps> = ({ post, isSentByMe = false, onPress }) => {
   const { colors, typography, spacing } = useTheme();
   const savedItems = useAppStore((state) => state.savedItems);
   const toggleSaveItem = useAppStore((state) => state.toggleSaveItem);
@@ -68,7 +69,12 @@ export const SharedPostCard: React.FC<SharedPostCardProps> = ({ post, isSentByMe
       </View>
 
       {/* Media Image */}
-      <ImageWithFallback uri={post.mediaUrl} style={styles.image} fallbackIcon="image-outline" />
+      <TouchableOpacity
+        activeOpacity={onPress ? 0.85 : 1}
+        onPress={onPress ? () => onPress(post) : undefined}
+      >
+        <ImageWithFallback uri={post.mediaUrl} style={styles.image} fallbackIcon="image-outline" />
+      </TouchableOpacity>
 
       {/* Caption & Save Action */}
       <View style={[styles.footer, { padding: spacing.sm }]}>

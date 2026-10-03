@@ -14,7 +14,7 @@ interface UnfeedWordmarkProps {
 export const UnfeedWordmark: React.FC<UnfeedWordmarkProps> = ({
   fontSize = 32,
   color,
-  useGradient = false,
+  useGradient = true,
   style,
 }) => {
   const [fontsLoaded] = useFonts({

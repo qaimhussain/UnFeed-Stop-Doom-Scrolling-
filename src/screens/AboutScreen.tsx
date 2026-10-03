@@ -109,15 +109,11 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
 
             <View style={[styles.codeBox, { backgroundColor: isDark ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.04)' }]}>
               <Text style={[typography.footnote, { color: colors.textSecondary, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', fontSize: 11, lineHeight: 16 }]}>
-                Copyright (c) 2025 Kyant{'\n'}
-                Licensed under the Apache License, Version 2.0 (the "License");{'\n'}
-                you may not use this file except in compliance with the License.{'\n'}
-                You may obtain a copy of the License at:{'\n'}
-                http://www.apache.org/licenses/LICENSE-2.0
+                {`Copyright (c) 2025 Kyant\nLicensed under the Apache License, Version 2.0 (the "License");\nyou may not use this file except in compliance with the License.\nYou may obtain a copy of the License at:\nhttp://www.apache.org/licenses/LICENSE-2.0`}
               </Text>
             </View>
             <Text style={[typography.footnote, { color: colors.textSecondary, marginTop: 10, lineHeight: 18 }]}>
-              The glass UI foundation, specular highlights, and spring-physics capsule tab geometry in Unfeed are adapted from Kyant0's Android Liquid Glass library.
+              {"The glass UI foundation, specular highlights, and spring-physics capsule tab geometry in Unfeed are adapted from Kyant0's Android Liquid Glass library."}
             </Text>
           </View>
         </GlassSurface>

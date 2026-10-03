@@ -19,6 +19,44 @@ import { PersonalNote, NoteBlock, NoteBlockType } from '../../types';
 import { GlassSurface } from '../focus/GlassSurface';
 import { FormattedText } from './FormattedText';
 
+function parseTextToBlocks(text: string): NoteBlock[] {
+  if (!text) {
+    return [{ id: `blk_${Date.now()}`, type: 'paragraph', text: '' }];
+  }
+  const lines = text.split('\n');
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
+      return {
+        id: `blk_${Date.now()}_${idx}`,
+        type: 'checklist',
+        text: trimmed.slice(4),
+        checked: true,
+      };
+    }
+    if (trimmed.startsWith('[ ] ')) {
+      return {
+        id: `blk_${Date.now()}_${idx}`,
+        type: 'checklist',
+        text: trimmed.slice(4),
+        checked: false,
+      };
+    }
+    if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      return {
+        id: `blk_${Date.now()}_${idx}`,
+        type: 'bullet',
+        text: trimmed.slice(2),
+      };
+    }
+    return {
+      id: `blk_${Date.now()}_${idx}`,
+      type: 'paragraph',
+      text: line,
+    };
+  });
+}
+
 interface NoteEditorModalProps {
   visible: boolean;
   note?: PersonalNote | null;
@@ -40,6 +78,33 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [isPinned, setIsPinned] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
 
+  const [prevVisible, setPrevVisible] = useState(visible);
+  const [prevNoteId, setPrevNoteId] = useState<string | null>(null);
+
+  if (visible !== prevVisible || (visible && note?.id !== prevNoteId)) {
+    setPrevVisible(visible);
+    setPrevNoteId(note?.id || null);
+    if (note) {
+      setTitle(note.title);
+      setIsPinned(note.isPinned);
+      if (note.blocks && note.blocks.length > 0) {
+        setBlocks(note.blocks);
+      } else {
+        setBlocks(parseTextToBlocks(note.content));
+      }
+    } else {
+      setTitle('');
+      setIsPinned(false);
+      setBlocks([
+        {
+          id: 'blk_initial_1',
+          type: 'paragraph',
+          text: '',
+        },
+      ]);
+    }
+  }
+
   // Handle Android back button
   useEffect(() => {
     if (!visible) return;
@@ -49,68 +114,6 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     });
     return () => sub.remove();
   }, [visible, onClose]);
-
-  useEffect(() => {
-    if (note) {
-      setTitle(note.title);
-      setIsPinned(note.isPinned);
-      if (note.blocks && note.blocks.length > 0) {
-        setBlocks(note.blocks);
-      } else {
-        // Convert legacy content to blocks
-        const initialBlocks = parseTextToBlocks(note.content);
-        setBlocks(initialBlocks);
-      }
-    } else {
-      setTitle('');
-      setIsPinned(false);
-      setBlocks([
-        {
-          id: `blk_${Date.now()}_1`,
-          type: 'paragraph',
-          text: '',
-        },
-      ]);
-    }
-  }, [note, visible]);
-
-  function parseTextToBlocks(text: string): NoteBlock[] {
-    if (!text) {
-      return [{ id: `blk_${Date.now()}`, type: 'paragraph', text: '' }];
-    }
-    const lines = text.split('\n');
-    return lines.map((line, idx) => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('[x] ') || trimmed.startsWith('[X] ')) {
-        return {
-          id: `blk_${Date.now()}_${idx}`,
-          type: 'checklist',
-          text: trimmed.slice(4),
-          checked: true,
-        };
-      }
-      if (trimmed.startsWith('[ ] ')) {
-        return {
-          id: `blk_${Date.now()}_${idx}`,
-          type: 'checklist',
-          text: trimmed.slice(4),
-          checked: false,
-        };
-      }
-      if (trimmed.startsWith('• ') || trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-        return {
-          id: `blk_${Date.now()}_${idx}`,
-          type: 'bullet',
-          text: trimmed.slice(2),
-        };
-      }
-      return {
-        id: `blk_${Date.now()}_${idx}`,
-        type: 'paragraph',
-        text: line,
-      };
-    });
-  }
 
   const serializeBlocksToContent = (blks: NoteBlock[]): string => {
     return blks

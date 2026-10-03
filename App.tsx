@@ -13,6 +13,7 @@ import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel'
 import { useAppStore } from './src/store/useAppStore';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { UnfeedWordmark } from './src/components/common/UnfeedWordmark';
 import { DailyLimitReachedModal } from './src/components/focus/DailyLimitReachedModal';
 import { SessionTimerReminderModal } from './src/components/focus/SessionTimerReminderModal';
 
@@ -107,7 +108,8 @@ export default function App() {
   if (!isInitialized || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0095F6" />
+        <UnfeedWordmark fontSize={48} useGradient={true} />
+        <ActivityIndicator size="small" color="#E1306C" style={{ marginTop: 24 }} />
       </View>
     );
   }

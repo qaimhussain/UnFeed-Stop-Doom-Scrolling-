@@ -30,25 +30,25 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
 
   // 10-second delay countdown before "5 more minutes" is tappable
   const [countdown, setCountdown] = useState(10);
-  const [isLockedMessage, setIsLockedMessage] = useState(false);
+  const isLockedMessage = screenTime.isLockedUntilTomorrow;
 
   useEffect(() => {
-    if (visible) {
-      setCountdown(10);
-      setIsLockedMessage(screenTime.isLockedUntilTomorrow);
-      const timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+    if (!visible) return;
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-      return () => clearInterval(timer);
-    }
-  }, [visible, screenTime.isLockedUntilTomorrow]);
+    return () => {
+      clearInterval(timer);
+      setCountdown(10);
+    };
+  }, [visible]);
 
   const canSnooze = screenTime.snoozeCountToday < 2;
   const isSnoozeEnabled = countdown === 0 && canSnooze && !isLockedMessage;
@@ -67,7 +67,6 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
     await lockUntilTomorrow();
-    setIsLockedMessage(true);
   };
 
   return (

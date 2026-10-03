@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -29,8 +29,8 @@ export const BlockedDoomscrollCard: React.FC<BlockedDoomscrollCardProps> = ({
   const { colors, typography, isDark } = useTheme();
 
   // Slide-in animation
-  const slideY = useRef(new Animated.Value(40)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [slideY] = useState(() => new Animated.Value(40));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.parallel([
@@ -104,7 +104,7 @@ export const BlockedDoomscrollCard: React.FC<BlockedDoomscrollCardProps> = ({
                 { color: colors.textPrimary },
               ]}
             >
-              That's the part Unfeed hides.
+              {"That's the part Unfeed hides."}
             </Text>
 
             <Text

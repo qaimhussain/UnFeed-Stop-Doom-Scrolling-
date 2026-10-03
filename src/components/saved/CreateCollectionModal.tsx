@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -29,10 +29,14 @@ export const CreateCollectionModal: React.FC<CreateCollectionModalProps> = ({
 }) => {
   const { colors, typography, spacing } = useTheme();
   const [name, setName] = useState(initialName);
+  const [prevVisible, setPrevVisible] = useState(visible);
 
-  useEffect(() => {
-    setName(initialName);
-  }, [initialName, visible]);
+  if (visible !== prevVisible) {
+    setPrevVisible(visible);
+    if (visible) {
+      setName(initialName);
+    }
+  }
 
   const handleSave = () => {
     if (!name.trim()) return;

@@ -71,4 +71,23 @@ mask_draw.rounded_rectangle([u_left + stroke, u_top - 10, u_right - stroke, u_bo
 # Apply mask to gradient
 fg_img.paste(gradient, (0, 0), mask)
 fg_img.save("assets/android-icon-foreground.png")
-print("Adaptive icon foreground and background successfully generated!")
+
+# 3. Monochrome layer (white shape on transparent background for Android 13+ themed icons)
+mono_img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+white_fill = Image.new("RGBA", (SIZE, SIZE), (255, 255, 255, 255))
+mono_img.paste(white_fill, (0, 0), mask)
+mono_img.save("assets/android-icon-monochrome.png")
+
+# 4. Standard 1024x1024 App Icon (Combined bg + fg)
+ICON_SIZE = 1024
+full_icon = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (16, 16, 20, 255))
+scaled_fg = fg_img.resize((ICON_SIZE, ICON_SIZE), Image.Resampling.LANCZOS)
+full_icon.paste(scaled_fg, (0, 0), scaled_fg)
+full_icon.save("assets/icon.png")
+full_icon.save("assets/adaptive-icon.png")
+
+# 5. Favicon (48x48)
+favicon = full_icon.resize((48, 48), Image.Resampling.LANCZOS)
+favicon.save("assets/favicon.png")
+
+print("All Android adaptive icons, monochrome icons, and app icons successfully generated!")

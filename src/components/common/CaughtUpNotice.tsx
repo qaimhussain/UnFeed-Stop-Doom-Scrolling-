@@ -36,7 +36,7 @@ export const CaughtUpNotice: React.FC<CaughtUpNoticeProps> = ({
           },
         ]}
       >
-        You're all caught up
+        {"You're all caught up"}
       </Text>
 
       <Text

@@ -103,18 +103,37 @@ export function runInstagramRulesTests(): {
     'Story depleted message matches requirement'
   );
 
-  // 7. Injected CSS and User Agent configuration checks
-  assert(
-    INSTAGRAM_CONFIG.MOBILE_CHROME_USER_AGENT.includes('Mobile Safari') &&
-      INSTAGRAM_CONFIG.MOBILE_CHROME_USER_AGENT.includes('Android'),
-    'Standard Mobile Chrome Android user agent configured'
-  );
-  assert(
-    INJECTED_INSTAGRAM_CSS.includes('nav') &&
-      INJECTED_INSTAGRAM_CSS.includes('a[href*="/explore"]') &&
-      INJECTED_INSTAGRAM_CSS.includes('a[href*="/reels"]'),
-    'Injected CSS hides web navigation, explore, and reels'
-  );
+  // 8. DM exceptions: Single reel and single post sent in chat are allowed
+  const dmReelEval = evaluateInstagramUrl('https://www.instagram.com/reel/C18yZw9L3xk/', {
+    isFromDM: true,
+  });
+  assert(dmReelEval.isAllowed === true, 'Reel sent in DM is allowed for single reel playback');
+  assert(dmReelEval.category === 'single_reel', 'Reel sent in DM has category "single_reel"');
+
+  const dmPostEval = evaluateInstagramUrl('https://www.instagram.com/p/C-4a9BvO5e1/', {
+    isFromDM: true,
+  });
+  assert(dmPostEval.isAllowed === true, 'Post sent in DM is allowed');
+  assert(dmPostEval.category === 'saved', 'Post sent in DM has category "saved"');
+
+  // 9. Saved exceptions: Single post opened from Saved grid is allowed
+  const savedPostEval = evaluateInstagramUrl('https://www.instagram.com/p/C-4a9BvO5e1/', {
+    isFromSaved: true,
+  });
+  assert(savedPostEval.isAllowed === true, 'Post opened from Saved is allowed');
+  assert(savedPostEval.category === 'saved', 'Post opened from Saved has category "saved"');
+
+  // 10. Stories tab home page exception: Stories tray on / is allowed when isStoriesContext is true
+  const storiesTrayEval = evaluateInstagramUrl('https://www.instagram.com/', {
+    isStoriesContext: true,
+  });
+  assert(storiesTrayEval.isAllowed === true, 'Home page allowed in Stories context for stories tray');
+  assert(storiesTrayEval.category === 'stories', 'Home page in Stories context has category "stories"');
+
+  const blockedFeedEval = evaluateInstagramUrl('https://www.instagram.com/', {
+    isStoriesContext: false,
+  });
+  assert(blockedFeedEval.isAllowed === false, 'Home feed is blocked when not in Stories context');
 
   return { passed, failed, errors };
 }

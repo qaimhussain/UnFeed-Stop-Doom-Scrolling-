@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeContext';
 import { GlassSurface } from './GlassSurface';
@@ -22,7 +21,7 @@ export const FocusWindowTimerPill: React.FC<FocusWindowTimerPillProps> = ({
   onPress,
 }) => {
   const { colors, typography } = useTheme();
-  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const [pulseAnim] = useState(() => new Animated.Value(1));
 
   const isFinalMinute = remainingSeconds > 0 && remainingSeconds <= 60;
 

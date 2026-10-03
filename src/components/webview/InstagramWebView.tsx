@@ -15,6 +15,7 @@ import {
   INSTAGRAM_CONFIG,
   evaluateInstagramUrl,
   INJECTED_INSTAGRAM_CSS,
+  SINGLE_REEL_LOCK_JS,
   RouteEvaluation,
 } from '../../config/instagramRules';
 import { BlockedDoomscrollCard } from './BlockedDoomscrollCard';
@@ -26,22 +27,31 @@ import { useAppStore } from '../../store/useAppStore';
 export interface InstagramWebViewProps {
   initialUrl: string;
   fallbackUrl?: string;
+  isFromDM?: boolean;
+  isFromSaved?: boolean;
+  isStoriesContext?: boolean;
   onNavigationStateChange?: (navState: WebViewNavigation) => void;
   onLoginDetected?: (url: string) => void;
+  onUsernameDetected?: (username: string) => void;
   style?: object;
   testID?: string;
 }
 
-export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
+export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>(({
   initialUrl,
   fallbackUrl = INSTAGRAM_CONFIG.DIRECT_INBOX_URL,
+  isFromDM = false,
+  isFromSaved = false,
+  isStoriesContext = false,
   onNavigationStateChange: externalOnNavChange,
   onLoginDetected,
+  onUsernameDetected,
   style,
   testID,
-}) => {
+}, ref) => {
   const { colors, typography, isDark } = useTheme();
-  const webViewRef = useRef<WebView>(null);
+  const internalWebViewRef = useRef<WebView>(null);
+  const webViewRef = (ref as React.RefObject<WebView>) || internalWebViewRef;
 
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -75,6 +85,18 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
         return true;
       }
 
+      if (isFromDM && (currentUrl.includes('/reel/') || currentUrl.includes('/p/'))) {
+        if (canGoBack && webViewRef.current) {
+          webViewRef.current.goBack();
+          return true;
+        } else if (webViewRef.current) {
+          webViewRef.current.injectJavaScript(
+            `window.location.href = "${fallbackUrl}"; true;`
+          );
+          return true;
+        }
+      }
+
       if (canGoBack && webViewRef.current) {
         webViewRef.current.goBack();
         return true;
@@ -87,7 +109,7 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
       onBackPress
     );
     return () => subscription.remove();
-  }, [canGoBack, blockedState, fallbackUrl]);
+  }, [canGoBack, blockedState, fallbackUrl, isFromDM, currentUrl]);
 
   // Request filter to block doomscrolling URLs before loading
   const handleShouldStartLoadWithRequest = useCallback(
@@ -106,6 +128,9 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
       const evaluation: RouteEvaluation = evaluateInstagramUrl(url, {
         isStoryTimeAvailable,
         username: instagramUsername || undefined,
+        isFromDM,
+        isFromSaved,
+        isStoriesContext,
       });
 
       if (!evaluation.isAllowed) {
@@ -129,7 +154,7 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
 
       return true;
     },
-    [isStoryTimeAvailable, instagramUsername, onLoginDetected, blockedState]
+    [isStoryTimeAvailable, instagramUsername, isFromDM, isFromSaved, isStoriesContext, onLoginDetected, blockedState]
   );
 
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
@@ -140,6 +165,9 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
     const evaluation = evaluateInstagramUrl(navState.url, {
       isStoryTimeAvailable,
       username: instagramUsername || undefined,
+      isFromDM,
+      isFromSaved,
+      isStoriesContext,
     });
 
     if (!evaluation.isAllowed) {
@@ -192,7 +220,40 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
         cacheEnabled={true}
         cacheMode="LOAD_DEFAULT"
         androidLayerType="hardware"
-        injectedJavaScriptBeforeContentLoaded={INJECTED_INSTAGRAM_CSS}
+        injectedJavaScriptBeforeContentLoaded={isFromDM ? `${INJECTED_INSTAGRAM_CSS}\n${SINGLE_REEL_LOCK_JS}` : INJECTED_INSTAGRAM_CSS}
+        injectedJavaScript={`
+          (function() {
+            try {
+              function detectUser() {
+                var links = document.querySelectorAll('a[href]');
+                for (var i = 0; i < links.length; i++) {
+                  var h = links[i].getAttribute('href');
+                  if (h && h.startsWith('/') && h.endsWith('/') && h.split('/').filter(Boolean).length === 1) {
+                    var u = h.replace(/\\//g, '');
+                    if (!['explore', 'direct', 'reels', 'stories', 'accounts', 'saved', 'p', 'settings', 'help', 'privacy', 'terms'].includes(u.toLowerCase())) {
+                      if (links[i].querySelector('img') || links[i].querySelector('svg[aria-label="Profile"]')) {
+                        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'DETECTED_USERNAME', username: u }));
+                        return;
+                      }
+                    }
+                  }
+                }
+              }
+              setTimeout(detectUser, 1000);
+              setTimeout(detectUser, 3000);
+            } catch(e) {}
+          })();
+          true;
+        `}
+        onMessage={(event) => {
+          try {
+            const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'DETECTED_USERNAME' && data.username) {
+              if (onUsernameDetected) onUsernameDetected(data.username);
+              useAppStore.getState().setInstagramLoggedIn(true, data.username);
+            }
+          } catch {}
+        }}
         onShouldStartLoadWithRequest={handleShouldStartLoadWithRequest}
         onNavigationStateChange={handleNavigationStateChange}
         onLoadStart={() => {
@@ -315,11 +376,53 @@ export const InstagramWebView: React.FC<InstagramWebViewProps> = ({
           returnButtonTitle="Return to Messages"
         />
       )}
+
+      {/* Floating glass Back to Chat button when viewing single reel or post from DM */}
+      {isFromDM && (currentUrl.includes('/reel/') || currentUrl.includes('/p/')) && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.floatingBackToChatBtn}
+          onPress={() => {
+            if (canGoBack && webViewRef.current) {
+              webViewRef.current.goBack();
+            } else if (webViewRef.current) {
+              webViewRef.current.injectJavaScript(`window.location.href = "${fallbackUrl}"; true;`);
+            }
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={45}
+            borderRadius={20}
+            elevation={6}
+            style={styles.floatingBackToChatInner}
+          >
+            <Ionicons name="arrow-back" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+            <Text style={[typography.captionBold, { color: '#FFFFFF' }]}>Back to Chat</Text>
+          </GlassSurface>
+        </TouchableOpacity>
+      )}
     </View>
   );
-};
+});
+
+InstagramWebView.displayName = 'InstagramWebView';
 
 const styles = StyleSheet.create({
+  floatingBackToChatBtn: {
+    position: 'absolute',
+    top: 14,
+    left: 14,
+    zIndex: 100,
+  },
+  floatingBackToChatInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
   container: {
     flex: 1,
     position: 'relative',

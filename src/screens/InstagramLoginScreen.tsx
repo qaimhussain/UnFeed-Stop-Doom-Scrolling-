@@ -108,9 +108,9 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   const webViewRef = useRef<WebView>(null);
 
   // Floating animation for the orbs
-  const orb1Y = useRef(new Animated.Value(0)).current;
-  const orb2Y = useRef(new Animated.Value(0)).current;
-  const orb3Y = useRef(new Animated.Value(0)).current;
+  const [orb1Y] = useState(() => new Animated.Value(0));
+  const [orb2Y] = useState(() => new Animated.Value(0));
+  const [orb3Y] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     const makeOrb = (anim: Animated.Value, duration: number, distance: number) =>
@@ -340,7 +340,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           </TouchableOpacity>
 
           <Text style={[styles.privacyNote, { color: colors.textTertiary }]}>
-            Unfeed uses Instagram's official mobile website inside a secure webview.{'\n'}
+            {"Unfeed uses Instagram's official mobile website inside a secure webview."}{'\n'}
             We never access, intercept, or store your login credentials.
           </Text>
         </View>

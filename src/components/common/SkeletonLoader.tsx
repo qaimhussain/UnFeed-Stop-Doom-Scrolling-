@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/ThemeContext';
 
@@ -16,7 +16,7 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   style,
 }) => {
   const { colors } = useTheme();
-  const opacityAnim = useRef(new Animated.Value(0.35)).current;
+  const [opacityAnim] = useState(() => new Animated.Value(0.35));
 
   useEffect(() => {
     const pulse = Animated.loop(

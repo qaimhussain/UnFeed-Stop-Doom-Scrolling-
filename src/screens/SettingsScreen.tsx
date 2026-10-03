@@ -263,7 +263,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               Intentional Session Timer
             </Text>
             <Text style={[typography.caption, { color: colors.textSecondary, marginBottom: 12 }]}>
-              "I'm here for a few minutes" — get a calm alert when your time is up.
+              {'"I\'m here for a few minutes" — get a calm alert when your time is up.'}
             </Text>
 
             {focusSettings.sessionTimerMinutes ? (

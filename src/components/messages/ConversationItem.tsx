@@ -37,10 +37,10 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   onAvatarPress,
 }) => {
   const { colors, typography, spacing } = useTheme();
-  const translateX = useRef(new Animated.Value(0)).current;
+  const [translateX] = useState(() => new Animated.Value(0));
   const [isOpen, setIsOpen] = useState(false);
 
-  const panResponder = useRef(
+  const [panResponder] = useState(() =>
     PanResponder.create({
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return Math.abs(gestureState.dx) > 15 && Math.abs(gestureState.dy) < 15;
@@ -74,7 +74,7 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         }
       },
     })
-  ).current;
+  );
 
   const closeActions = () => {
     Animated.spring(translateX, {

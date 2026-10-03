@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,13 +41,36 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const moveItemToCollection = useAppStore((state) => state.moveItemToCollection);
   const isDemoMode = useAppStore((state) => state.isDemoMode);
   const isInstagramLoggedIn = useAppStore((state) => state.isInstagramLoggedIn);
+  const instagramUsername = useAppStore((state) => state.instagramUsername);
 
   const [activeTab, setActiveTab] = useState<'all' | 'collections'>('all');
   const [selectedItem, setSelectedItem] = useState<SavedItem | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState<string>('');
+  const webViewRef = useRef<any>(null);
 
   // Clearance so content stops right above floating tab bar
   const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
+
+  // Compute real Instagram user saved posts URL
+  const realSavedUrl = instagramUsername
+    ? `https://www.instagram.com/${instagramUsername}/saved/`
+    : `https://www.instagram.com/saved/all-posts/`;
+
+  const isViewingSingleSavedPost = currentUrl.includes('/p/');
+
+  // Android Back Button handler for Saved
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (isViewingSingleSavedPost && webViewRef.current) {
+        webViewRef.current.goBack();
+        return true;
+      }
+      return false;
+    });
+    return () => sub.remove();
+  }, [isViewingSingleSavedPost]);
 
   const handleTabChange = (tab: 'all' | 'collections') => {
     if (Platform.OS !== 'web') {
@@ -67,11 +91,26 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
 
         {/* Minimal Glass Top Bar with Wordmark */}
         <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
-          <UnfeedWordmark fontSize={32} color={colors.textPrimary} />
+          {isViewingSingleSavedPost ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.backButtonRow}
+              onPress={() => webViewRef.current?.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <Ionicons name="arrow-back" size={22} color={colors.textPrimary} style={{ marginRight: 6 }} />
+              <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                Back to Saved
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <UnfeedWordmark fontSize={32} useGradient={true} />
+          )}
+
           <View style={styles.headerRightRow}>
             <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
               <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
-                Saved Posts
+                {isViewingSingleSavedPost ? 'Post' : 'Saved'}
               </Text>
             </View>
             <TouchableOpacity
@@ -89,8 +128,13 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         {/* Real Instagram Saved Posts WebView */}
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>
           <InstagramWebView
-            initialUrl={INSTAGRAM_CONFIG.SAVED_URL}
-            fallbackUrl="https://www.instagram.com/saved/"
+            ref={webViewRef}
+            initialUrl={realSavedUrl}
+            fallbackUrl={realSavedUrl}
+            isFromSaved={true}
+            onNavigationStateChange={(navState) => {
+              setCurrentUrl(navState.url);
+            }}
             style={styles.realWebView}
           />
         </View>
@@ -242,6 +286,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  backButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 4,
   },
   headerRightRow: {
     flexDirection: 'row',

@@ -12,25 +12,21 @@ export const SessionTimerIndicator: React.FC = () => {
   const sessionStartedAt = useAppStore((state) => state.focusSettings.sessionStartedAt);
   const cancelSessionTimer = useAppStore((state) => state.cancelSessionTimer);
 
-  const [remainingSecs, setRemainingSecs] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (!sessionMinutes || !sessionStartedAt) {
-      setRemainingSecs(null);
-      return;
-    }
-
-    const updateRemaining = () => {
-      const elapsedSecs = Math.floor((Date.now() - sessionStartedAt) / 1000);
-      const totalSecs = sessionMinutes * 60;
-      const left = Math.max(0, totalSecs - elapsedSecs);
-      setRemainingSecs(left);
-    };
-
-    updateRemaining();
-    const interval = setInterval(updateRemaining, 1000);
+    if (!sessionMinutes || !sessionStartedAt) return;
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
     return () => clearInterval(interval);
   }, [sessionMinutes, sessionStartedAt]);
+
+  if (!sessionMinutes || !sessionStartedAt) return null;
+
+  const elapsedSecs = Math.floor((now - sessionStartedAt) / 1000);
+  const totalSecs = sessionMinutes * 60;
+  const remainingSecs = Math.max(0, totalSecs - elapsedSecs);
 
   if (remainingSecs === null || remainingSecs <= 0) return null;
 

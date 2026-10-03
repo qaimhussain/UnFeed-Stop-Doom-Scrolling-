@@ -151,6 +151,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
           <InstagramWebView
             initialUrl={INSTAGRAM_CONFIG.DIRECT_INBOX_URL}
             fallbackUrl={INSTAGRAM_CONFIG.DIRECT_INBOX_URL}
+            isFromDM={true}
             style={styles.realWebView}
           />
         </View>
