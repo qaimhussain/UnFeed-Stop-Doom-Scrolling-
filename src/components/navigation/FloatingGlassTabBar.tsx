@@ -25,6 +25,7 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -86,6 +87,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
   navigation,
 }) => {
   const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
   const conversations = useAppStore((state) => state.conversations);
   const stories = useAppStore((state) => state.stories);
   const storyTimeUsage = useAppStore((state) => state.storyTimeUsage);
@@ -127,7 +129,13 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
   });
 
   return (
-    <View style={styles.floatingWrapper} pointerEvents="box-none">
+    <View
+      style={[
+        styles.floatingWrapper,
+        { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20) },
+      ]}
+      pointerEvents="box-none"
+    >
       <GlassSurface
         useRealBlur={true}
         blurIntensity={65}

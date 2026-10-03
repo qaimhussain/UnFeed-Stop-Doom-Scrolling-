@@ -5,21 +5,23 @@ import {
   FlatList,
   RefreshControl,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
+import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { StoryCardItem } from '../components/stories/StoryCardItem';
 import { StoryViewerModal } from '../components/stories/StoryViewerModal';
 import { CaughtUpNotice } from '../components/common/CaughtUpNotice';
 import { EmptyState } from '../components/common/EmptyState';
-import { LockedTabScreen } from '../components/focus/LockedTabScreen';
-import { storyTimeService } from '../services/storyTimeService';
-import { STORY_DAILY_LIMIT_SECONDS } from '../config/storyTimeConfig';
+import { InstagramWebView } from '../components/webview/InstagramWebView';
+import { INSTAGRAM_CONFIG } from '../config/instagramRules';
 
 interface StoriesScreenProps {
   navigation: any;
@@ -28,28 +30,11 @@ interface StoriesScreenProps {
 export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
   const { colors, typography, isDark, spacing } = useTheme();
   const stories = useAppStore((state) => state.stories);
-  const storyTimeUsage = useAppStore((state) => state.storyTimeUsage);
-  const tickStoryTime = useAppStore((state) => state.tickStoryTime);
+  const isDemoMode = useAppStore((state) => state.isDemoMode);
+  const isInstagramLoggedIn = useAppStore((state) => state.isInstagramLoggedIn);
 
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Tick clock for rollover check
-  useEffect(() => {
-    const timer = setInterval(() => {
-      tickStoryTime();
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [tickStoryTime]);
-
-  const accessStatus = storyTimeService.getStoryAccessStatus(storyTimeUsage.secondsUsed);
-
-  // Auto-close open viewer if limit reached while on Stories
-  useEffect(() => {
-    if (!accessStatus.isAccessible && activeStoryIndex !== null) {
-      setActiveStoryIndex(null);
-    }
-  }, [accessStatus.isAccessible, activeStoryIndex]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -65,69 +50,59 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
     setActiveStoryIndex(index);
   };
 
-  const handleNavigateToChat = (conversationId: string) => {
-    navigation.navigate('ChatDetail', { conversationId });
-  };
-
-  // If locked, render calm full-screen glass card
-  if (!accessStatus.isAccessible) {
+  // Real Instagram Stories Mode (Logged in with real account)
+  if (!isDemoMode && isInstagramLoggedIn) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-        <Header title="Stories" />
-        <LockedTabScreen
-          tabName="Stories"
-          reason="story_limit_reached"
-          onNavigateToMessages={() => navigation.navigate('Messages')}
-        />
+
+        {/* Minimal Glass Top Bar with Wordmark */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} color={colors.textPrimary} />
+          <View style={styles.headerRightRow}>
+            <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
+              <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
+                Stories Only
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerIconButton}
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Real Instagram Stories Tray & Viewer (Feed hidden via CSS) */}
+        <View style={styles.realWebViewContainer}>
+          <InstagramWebView
+            initialUrl={INSTAGRAM_CONFIG.BASE_URL}
+            fallbackUrl={INSTAGRAM_CONFIG.BASE_URL}
+            style={styles.realWebView}
+          />
+        </View>
       </SafeAreaView>
     );
   }
 
-  const unseenStoriesCount = stories.filter((s) => !s.isSeen).length;
-  const progressRatio = Math.min(1, storyTimeUsage.secondsUsed / STORY_DAILY_LIMIT_SECONDS);
-  const timeProgressText = storyTimeService.formatTimeProgress(storyTimeUsage.secondsUsed);
-
+  // Demo Mode Stories
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <Header
-        title="Stories"
+        title="Stories (Demo)"
         rightActions={[
           {
-            icon: 'information-circle-outline',
-            onPress: () => {},
+            icon: 'settings-outline',
+            onPress: () => navigation.navigate('Settings'),
           },
         ]}
       />
-
-      {/* Story Time Usage Subheader & Slim Progress Bar */}
-      <View style={[styles.subHeader, { borderBottomColor: colors.divider }]}>
-        <View style={styles.progressRow}>
-          <Text style={[typography.captionBold, { color: colors.textPrimary, fontSize: 12 }]}>
-            {timeProgressText}
-          </Text>
-          <Text style={[typography.caption, { color: colors.textSecondary, fontSize: 11 }]}>
-            {Math.max(0, Math.floor((STORY_DAILY_LIMIT_SECONDS - storyTimeUsage.secondsUsed) / 60))}m left today
-          </Text>
-        </View>
-
-        {/* Slim Progress Bar */}
-        <View style={[styles.progressBarTrack, { backgroundColor: colors.surfaceSecondary, borderColor: colors.divider }]}>
-          <View
-            style={[
-              styles.progressBarFill,
-              {
-                width: `${Math.round(progressRatio * 100)}%`,
-                backgroundColor: progressRatio > 0.85 ? '#FA7E1E' : colors.accent,
-              },
-            ]}
-          />
-        </View>
-      </View>
-
 
       {/* Stories Grid */}
       <FlatList
@@ -143,30 +118,36 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
           />
         }
         renderItem={({ item, index }) => (
-          <StoryCardItem story={item} onPress={() => handleOpenStory(index)} />
-        )}
-        ListEmptyComponent={
-          <EmptyState
-            icon="images-outline"
-            title="No active stories"
-            description="Your close friends have not shared any stories in the past 24 hours."
+          <StoryCardItem
+            story={item}
+            onPress={() => handleOpenStory(index)}
           />
-        }
-        ListFooterComponent={
-          stories.length > 0 ? (
-            <CaughtUpNotice subtitle="You've viewed all available stories. No algorithmic loop." />
-          ) : null
-        }
+        )}
+        ListFooterComponent={() => (
+          <View style={{ marginTop: spacing.md, paddingHorizontal: spacing.sm }}>
+            <CaughtUpNotice subtitle="You are all caught up on stories." />
+          </View>
+        )}
+        ListEmptyComponent={() => (
+          <EmptyState
+            icon="aperture-outline"
+            title="No Stories"
+            description="No active stories from the people you follow."
+          />
+        )}
       />
 
-      {/* Fullscreen Story Viewer Modal */}
+      {/* Story Viewer Modal */}
       {activeStoryIndex !== null && (
         <StoryViewerModal
-          visible={activeStoryIndex !== null}
+          visible={true}
           stories={stories}
           initialIndex={activeStoryIndex}
           onClose={() => setActiveStoryIndex(null)}
-          onNavigateToChat={handleNavigateToChat}
+          onNavigateToChat={(convId) => {
+            setActiveStoryIndex(null);
+            navigation.navigate('ChatDetail', { conversationId: convId });
+          }}
         />
       )}
     </SafeAreaView>
@@ -177,29 +158,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  subHeader: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  progressRow: {
+  realHeader: {
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  progressBarTrack: {
-    height: 4,
-    borderRadius: 2,
-    borderWidth: 0.5,
-    overflow: 'hidden',
-    width: '100%',
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 2,
+  pillBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  headerIconButton: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  realWebViewContainer: {
+    flex: 1,
+    paddingBottom: 68, // Clearance for floating glass tab bar
+  },
+  realWebView: {
+    flex: 1,
   },
   gridContent: {
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
 });

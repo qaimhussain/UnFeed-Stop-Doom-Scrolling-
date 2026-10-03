@@ -8,12 +8,13 @@ import {
   createNavigationContainerRef,
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
+import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
 import { useAppStore } from './src/store/useAppStore';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { DailyLimitReachedModal } from './src/components/focus/DailyLimitReachedModal';
 import { SessionTimerReminderModal } from './src/components/focus/SessionTimerReminderModal';
-import { focusWindowService } from './src/services/focusWindowService';
 
 export const navigationRef = createNavigationContainerRef<any>();
 
@@ -23,20 +24,6 @@ const AppContent: React.FC = () => {
   const isSessionTimerAlertVisible = useAppStore((state) => state.isSessionTimerAlertVisible);
   const dismissDailyLimit = useAppStore((state) => state.dismissDailyLimit);
   const dismissSessionTimerAlert = useAppStore((state) => state.dismissSessionTimerAlert);
-  const dailyFocusWindow = useAppStore((state) => state.dailyFocusWindow);
-
-  // Gracefully return to Messages when window closes
-  useEffect(() => {
-    if (!dailyFocusWindow) return;
-    const now = Date.now();
-    const status = focusWindowService.getWindowStatus(dailyFocusWindow, now);
-    if (status === 'passed' && navigationRef.isReady()) {
-      const currentRoute = navigationRef.getCurrentRoute()?.name;
-      if (currentRoute === 'Stories' || currentRoute === 'Saved') {
-        navigationRef.navigate('MainTabs' as any, { screen: 'Messages' });
-      }
-    }
-  }, [dailyFocusWindow]);
 
   const navigationTheme = {
     ...(isDark ? DarkTheme : DefaultTheme),
@@ -69,13 +56,16 @@ const AppContent: React.FC = () => {
 };
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    GrandHotel_400Regular,
+  });
+
   const initStore = useAppStore((state) => state.initStore);
   const isInitialized = useAppStore((state) => state.isInitialized);
   const themeMode = useAppStore((state) => state.focusSettings.themeMode);
   const setThemeMode = useAppStore((state) => state.setThemeMode);
   const tickScreenTime = useAppStore((state) => state.tickScreenTime);
-  const tickFocusWindow = useAppStore((state) => state.tickFocusWindow);
-  const checkAndRefreshFocusWindow = useAppStore((state) => state.checkAndRefreshFocusWindow);
+  const tickStoryTime = useAppStore((state) => state.tickStoryTime);
   const pauseStoryViewingSession = useAppStore((state) => state.pauseStoryViewingSession);
   const resumeStoryViewingSession = useAppStore((state) => state.resumeStoryViewingSession);
   const saveStoryCapUsage = useAppStore((state) => state.saveStoryCapUsage);
@@ -83,13 +73,16 @@ export default function App() {
   useEffect(() => {
     initStore();
 
+    // Request Android notification permissions on startup
+    Notifications.requestPermissionsAsync().catch(() => {});
+
     // App State lifecycle listener: save cap on background, refresh on active
     const subscription = RNAppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
         pauseStoryViewingSession();
         saveStoryCapUsage();
       } else if (nextAppState === 'active') {
-        checkAndRefreshFocusWindow();
+        tickStoryTime();
         resumeStoryViewingSession();
       }
     });
@@ -99,19 +92,19 @@ export default function App() {
       tickScreenTime(10);
     }, 10000);
 
-    // Live focus window & story cap ticker: ticks every second
-    const focusInterval = setInterval(() => {
-      tickFocusWindow();
+    // Live story time ticker: ticks every second
+    const storyInterval = setInterval(() => {
+      tickStoryTime();
     }, 1000);
 
     return () => {
       subscription.remove();
       clearInterval(screenInterval);
-      clearInterval(focusInterval);
+      clearInterval(storyInterval);
     };
   }, []);
 
-  if (!isInitialized) {
+  if (!isInitialized || !fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0095F6" />

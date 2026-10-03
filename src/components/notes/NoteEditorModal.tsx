@@ -6,12 +6,12 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   BackHandler,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeContext';
@@ -191,7 +191,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
         {/* Top Header */}
         <View style={[styles.header, { borderBottomColor: colors.divider }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn}>

@@ -6,13 +6,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Alert,
   Image,
   BackHandler,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -137,7 +137,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
 
   if (!conversation) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorContainer}>
           <Text style={[typography.body, { color: colors.textSecondary }]}>Conversation not found</Text>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -151,7 +151,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
   const { participant } = conversation;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Top Header */}
       <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity

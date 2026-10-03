@@ -12,10 +12,10 @@ import {
   PanResponder,
   Platform,
   KeyboardAvoidingView,
-  SafeAreaView,
   BackHandler,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { UserStory } from '../../types';
@@ -317,7 +317,7 @@ export const StoryViewerModal: React.FC<StoryViewerModalProps> = ({
           </View>
         )}
 
-        <SafeAreaView style={styles.safeArea}>
+        <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
           {/* Top Progress Bars */}
           <View style={styles.progressContainer}>
             {slides.map((_, idx) => {

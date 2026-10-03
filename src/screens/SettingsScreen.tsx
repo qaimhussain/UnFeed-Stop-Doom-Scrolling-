@@ -6,10 +6,10 @@ import {
   Switch,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Platform,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -37,6 +37,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   const cancelSessionTimer = useAppStore((state) => state.cancelSessionTimer);
   const toggleNotifications = useAppStore((state) => state.toggleNotifications);
   const toggleReduceEffects = useAppStore((state) => state.toggleReduceEffects);
+  const isDemoMode = useAppStore((state) => state.isDemoMode);
+  const isInstagramLoggedIn = useAppStore((state) => state.isInstagramLoggedIn);
+  const setDemoMode = useAppStore((state) => state.setDemoMode);
+  const logoutInstagram = useAppStore((state) => state.logoutInstagram);
 
   const handleSelectTheme = (mode: ThemeMode) => {
     if (Platform.OS !== 'web') {
@@ -61,7 +65,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header with Glass */}
       <Header
         title="Settings & Wellbeing"
@@ -116,6 +120,98 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             Target: {focusSettings.dailyLimitMinutes ? `${focusSettings.dailyLimitMinutes} min limit` : 'No limit set'} • Tracks in-app active usage only
           </Text>
         </GlassSurface>
+
+        {/* SECTION 0: REAL INSTAGRAM & DEMO MODE */}
+        <View style={styles.section}>
+          <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSecondary }]}>
+            INSTAGRAM & DEMO MODE
+          </Text>
+
+          <GlassSurface borderRadius={16} elevation={2} style={styles.sectionCard}>
+            {/* Demo Mode Toggle */}
+            <View style={styles.settingRow}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  Demo Mode
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  Use simulated contacts and mock data instead of live Instagram
+                </Text>
+              </View>
+              <Switch
+                value={isDemoMode}
+                onValueChange={async (value) => {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                  }
+                  await setDemoMode(value);
+                }}
+                trackColor={{ false: colors.divider, true: colors.accent }}
+              />
+            </View>
+
+            <HairlineDivider style={{ marginVertical: 14 }} />
+
+            {/* Instagram Account & Logout */}
+            <View style={styles.settingRow}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  Instagram Account
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  {isInstagramLoggedIn
+                    ? 'Connected via official Instagram mobile site'
+                    : 'Not connected to Instagram'}
+                </Text>
+              </View>
+
+              {isInstagramLoggedIn ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    Alert.alert(
+                      'Log out of Instagram',
+                      'This will clear your Instagram session on this device. You will need to sign in again to access live messages.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Log out',
+                          style: 'destructive',
+                          onPress: async () => {
+                            if (Platform.OS !== 'web') {
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+                            }
+                            await logoutInstagram();
+                            navigation.reset({
+                              index: 0,
+                              routes: [{ name: 'InstagramLogin' }],
+                            });
+                          },
+                        },
+                      ]
+                    );
+                  }}
+                  style={[styles.logoutBtn, { borderColor: colors.destructive }]}
+                >
+                  <Ionicons name="log-out-outline" size={15} color={colors.destructive} style={{ marginRight: 4 }} />
+                  <Text style={[typography.captionBold, { color: colors.destructive }]}>
+                    Log out
+                  </Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => {
+                    navigation.navigate('InstagramLogin');
+                  }}
+                  style={[styles.loginBtn, { backgroundColor: colors.accent }]}
+                >
+                  <Text style={[typography.captionBold, { color: '#FFFFFF' }]}>
+                    Sign In
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </GlassSurface>
+        </View>
 
         {/* SECTION 1: DIGITAL WELLBEING & LIMITS */}
         <View style={styles.section}>
@@ -558,6 +654,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  loginBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 8,
   },
   settingRow: {
     flexDirection: 'row',

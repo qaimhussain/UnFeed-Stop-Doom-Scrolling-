@@ -5,10 +5,10 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -135,7 +135,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = () => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}

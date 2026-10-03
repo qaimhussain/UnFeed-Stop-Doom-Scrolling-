@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
             activeOpacity={onTitlePress ? 0.7 : 1}
             style={styles.wordmarkRow}
           >
-            <UnfeedWordmark fontSize={32} />
+            <UnfeedWordmark fontSize={32} color={colors.textPrimary} />
           </TouchableOpacity>
         ) : title && !leftAction ? (
           <TouchableOpacity

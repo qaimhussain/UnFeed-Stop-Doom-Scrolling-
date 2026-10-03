@@ -30,8 +30,6 @@ import {
   MOCK_PERSONAL_NOTES,
 } from '../services/mockData';
 import { storageService } from '../services/storageService';
-import { focusWindowService } from '../services/focusWindowService';
-import { FOCUS_WINDOW_CONFIG } from '../config/focusWindowConfig';
 import { storyTimeService } from '../services/storyTimeService';
 import { STORY_DAILY_LIMIT_SECONDS, STORY_TIME_CONFIG } from '../config/storyTimeConfig';
 
@@ -48,6 +46,9 @@ const STORAGE_KEYS = {
   FOCUS_WINDOW: 'unfeed_focus_window',
   STORY_CAP_USAGE: 'unfeed_story_cap_usage',
   STORY_TIME_USAGE: 'unfeed_story_time_usage',
+  IS_DEMO_MODE: 'unfeed_is_demo_mode',
+  IS_IG_LOGGED_IN: 'unfeed_is_ig_logged_in',
+  IG_USERNAME: 'unfeed_ig_username',
 };
 
 
@@ -73,6 +74,11 @@ interface AppState {
   isDailyLimitReached: boolean;
   isSessionTimerAlertVisible: boolean;
 
+  // Real Instagram & Demo Mode State
+  isDemoMode: boolean;
+  isInstagramLoggedIn: boolean;
+  instagramUsername: string | null;
+
   // Story Time & Limit
   storyTimeUsage: StoryTimeUsage;
   dailyFocusWindow: DailyFocusWindow | null;
@@ -83,6 +89,9 @@ interface AppState {
 
   // Actions
   initStore: () => Promise<void>;
+  setDemoMode: (enabled: boolean) => Promise<void>;
+  setInstagramLoggedIn: (loggedIn: boolean, username?: string | null) => Promise<void>;
+  logoutInstagram: () => Promise<void>;
   setThemeMode: (mode: ThemeMode) => Promise<void>;
   checkAndRefreshFocusWindow: () => Promise<void>;
   toggleDebugWindow: () => Promise<void>;
@@ -173,6 +182,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   isDailyLimitReached: false,
   isSessionTimerAlertVisible: false,
 
+  // Real Instagram & Demo Mode Initial State
+  isDemoMode: false,
+  isInstagramLoggedIn: false,
+  instagramUsername: null,
+
   // Focus Window & Story Time Initial State
   storyTimeUsage: {
     date: getTodayString(),
@@ -211,6 +225,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         savedFocus,
         savedScreenTime,
         savedStoryTime,
+        savedIsDemoMode,
+        savedIsIgLoggedIn,
+        savedIgUsername,
       ] = await Promise.all([
         storageService.getItem<ShortNote>(STORAGE_KEYS.USER_NOTE, INITIAL_USER_NOTE),
         storageService.getItem<Conversation[]>(STORAGE_KEYS.CONVERSATIONS, MOCK_CONVERSATIONS),
@@ -238,6 +255,9 @@ export const useAppStore = create<AppState>((set, get) => ({
           secondsUsed: 0,
           lastSavedAt: nowMs,
         }),
+        storageService.getItem<boolean>(STORAGE_KEYS.IS_DEMO_MODE, false),
+        storageService.getItem<boolean>(STORAGE_KEYS.IS_IG_LOGGED_IN, false),
+        storageService.getItem<string | null>(STORAGE_KEYS.IG_USERNAME, null),
       ]);
 
       const activeScreenTime: ScreenTimeState =
@@ -297,6 +317,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         personalNotes: savedNotes,
         focusSettings: savedFocus,
         screenTime: activeScreenTime,
+        isDemoMode: savedIsIgLoggedIn ? false : savedIsDemoMode,
+        isInstagramLoggedIn: savedIsIgLoggedIn,
+        instagramUsername: savedIgUsername,
         dailyFocusWindow: {
           date: today,
           startEpochMs: 0,
@@ -318,29 +341,42 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
+  setDemoMode: async (enabled: boolean) => {
+    set({ isDemoMode: enabled });
+    await storageService.setItem(STORAGE_KEYS.IS_DEMO_MODE, enabled);
+  },
+
+  setInstagramLoggedIn: async (loggedIn: boolean, username?: string | null) => {
+    const currentUsername = get().instagramUsername;
+    const resolvedUsername = username !== undefined ? username : currentUsername;
+    set({
+      isInstagramLoggedIn: loggedIn,
+      isDemoMode: loggedIn ? false : get().isDemoMode,
+      instagramUsername: resolvedUsername,
+    });
+    await Promise.all([
+      storageService.setItem(STORAGE_KEYS.IS_IG_LOGGED_IN, loggedIn),
+      loggedIn ? storageService.setItem(STORAGE_KEYS.IS_DEMO_MODE, false) : Promise.resolve(),
+      resolvedUsername !== null
+        ? storageService.setItem(STORAGE_KEYS.IG_USERNAME, resolvedUsername)
+        : storageService.removeItem(STORAGE_KEYS.IG_USERNAME),
+    ]);
+  },
+
+  logoutInstagram: async () => {
+    set({
+      isInstagramLoggedIn: false,
+      instagramUsername: null,
+    });
+    await Promise.all([
+      storageService.setItem(STORAGE_KEYS.IS_IG_LOGGED_IN, false),
+      storageService.removeItem(STORAGE_KEYS.IG_USERNAME),
+    ]);
+  },
+
 
   checkAndRefreshFocusWindow: async () => {
-    const today = getTodayString();
-    const currentWindow = get().dailyFocusWindow;
-    if (!currentWindow || currentWindow.date !== today) {
-      if (currentWindow?.notificationId) {
-        await focusWindowService.cancelNotification(currentWindow.notificationId);
-      }
-      const newWin = focusWindowService.generateDailyWindow(today);
-      const notifId = await focusWindowService.scheduleWindowNotification(newWin);
-      if (notifId) {
-        newWin.notificationId = notifId;
-        newWin.notificationScheduled = true;
-      }
-      set({ dailyFocusWindow: newWin });
-      await storageService.setItem(STORAGE_KEYS.FOCUS_WINDOW, newWin);
-    }
-    const currentCap = get().storyCapUsage;
-    if (currentCap.date !== today) {
-      const resetCap: StoryCapUsage = { date: today, secondsUsed: 0, lastSavedAt: Date.now() };
-      set({ storyCapUsage: resetCap });
-      await storageService.setItem(STORAGE_KEYS.STORY_CAP_USAGE, resetCap);
-    }
+    get().tickStoryTime();
   },
 
   toggleDebugWindow: async () => {

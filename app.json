@@ -10,6 +10,12 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.yourname.unfeed",
+      "permissions": [
+        "INTERNET",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#000000",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -22,8 +28,12 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-font",
-      "./plugins/withAndroidBackdrop"
-    ]
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f2b28055-a0f2-4f30-866f-8c126ebce8e2"
+      }
+    }
   }
 }

@@ -5,9 +5,9 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -42,7 +42,7 @@ export const NewMessageModal: React.FC<NewMessageModalProps> = ({ navigation }) 
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
       {/* Top Header */}
       <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity

@@ -5,10 +5,10 @@ import {
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   Alert,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -51,7 +51,7 @@ export const CollectionDetailScreen: React.FC<CollectionDetailScreenProps> = ({
 
   if (!collection) {
     return (
-      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <View style={styles.errorBox}>
           <Text style={[typography.body, { color: colors.textSecondary }]}>Collection not found</Text>
           <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 12 }}>
@@ -89,7 +89,7 @@ export const CollectionDetailScreen: React.FC<CollectionDetailScreenProps> = ({
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.divider }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerBtn}>

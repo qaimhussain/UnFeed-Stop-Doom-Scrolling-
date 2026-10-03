@@ -1,26 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   FlatList,
   TouchableOpacity,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Dimensions,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
+import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { SavedGridThumbnail } from '../components/saved/SavedGridThumbnail';
 import { CollectionFolderItem } from '../components/saved/CollectionFolderItem';
 import { SavedDetailModal } from '../components/saved/SavedDetailModal';
 import { CreateCollectionModal } from '../components/saved/CreateCollectionModal';
 import { CaughtUpNotice } from '../components/common/CaughtUpNotice';
 import { EmptyState } from '../components/common/EmptyState';
+import { InstagramWebView } from '../components/webview/InstagramWebView';
+import { INSTAGRAM_CONFIG } from '../config/instagramRules';
 import { SavedItem, Collection } from '../types';
 
 interface SavedScreenProps {
@@ -31,14 +34,16 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const { colors, typography, isDark, spacing } = useTheme();
   const savedItems = useAppStore((state) => state.savedItems);
   const collections = useAppStore((state) => state.collections);
-  const dailyFocusWindow = useAppStore((state) => state.dailyFocusWindow);
   const createCollection = useAppStore((state) => state.createCollection);
   const removeSavedItem = useAppStore((state) => state.removeSavedItem);
   const moveItemToCollection = useAppStore((state) => state.moveItemToCollection);
+  const isDemoMode = useAppStore((state) => state.isDemoMode);
+  const isInstagramLoggedIn = useAppStore((state) => state.isInstagramLoggedIn);
 
   const [activeTab, setActiveTab] = useState<'all' | 'collections'>('all');
   const [selectedItem, setSelectedItem] = useState<SavedItem | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+
   const handleTabChange = (tab: 'all' | 'collections') => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -50,13 +55,52 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     navigation.navigate('CollectionDetail', { collectionId: collection.id });
   };
 
+  // Real Instagram Saved Posts Mode (Logged in with real account)
+  if (!isDemoMode && isInstagramLoggedIn) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+
+        {/* Minimal Glass Top Bar with Wordmark */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} color={colors.textPrimary} />
+          <View style={styles.headerRightRow}>
+            <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
+              <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
+                Saved Posts
+              </Text>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerIconButton}
+              onPress={() => navigation.navigate('Settings')}
+              accessibilityLabel="Settings"
+            >
+              <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Real Instagram Saved Posts WebView */}
+        <View style={styles.realWebViewContainer}>
+          <InstagramWebView
+            initialUrl={INSTAGRAM_CONFIG.SAVED_URL}
+            fallbackUrl="https://www.instagram.com/saved/"
+            style={styles.realWebView}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Demo Mode Saved Collections
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <Header
-        title="Saved"
+        title="Saved (Demo)"
         rightActions={[
           {
             icon: 'add-outline',
@@ -121,69 +165,49 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         </TouchableOpacity>
       </View>
 
-      {/* Library Subheader */}
-      <View style={[styles.timerRow, { borderBottomColor: colors.divider }]}>
-        <Text style={[typography.caption, { color: colors.textSecondary }]}>
-          Private library • Only visible to you
-        </Text>
-      </View>
-
-      {/* Content */}
+      {/* Tab Content */}
       {activeTab === 'all' ? (
-        /* 3-Column Square Grid */
         <FlatList
           data={savedItems}
           keyExtractor={(item) => item.id}
           numColumns={3}
+          contentContainerStyle={styles.listContent}
           renderItem={({ item }) => (
-            <SavedGridThumbnail item={item} onPress={() => setSelectedItem(item)} />
+            <SavedGridThumbnail
+              item={item}
+              onPress={() => setSelectedItem(item)}
+            />
           )}
-          ListEmptyComponent={
+          ListFooterComponent={() => (
+            <View style={{ marginTop: spacing.md, paddingHorizontal: spacing.sm }}>
+              <CaughtUpNotice subtitle="All bookmarked inspirations organized." />
+            </View>
+          )}
+          ListEmptyComponent={() => (
             <EmptyState
               icon="bookmark-outline"
-              title="Save photos and videos"
-              description="Save items from chats or friend stories. No one will be notified."
+              title="No Saved Posts"
+              description="Your saved posts from Instagram will appear here."
             />
-          }
-          ListFooterComponent={
-            savedItems.length > 0 ? (
-              <CaughtUpNotice subtitle="All saved items displayed. No algorithmic recommendations." />
-            ) : null
-          }
-          contentContainerStyle={styles.listContent}
+          )}
         />
       ) : (
-        /* Collections Grid */
         <FlatList
           data={collections}
           keyExtractor={(item) => item.id}
           numColumns={2}
+          contentContainerStyle={styles.colListContent}
           columnWrapperStyle={styles.colWrapper}
-          contentContainerStyle={[styles.colListContent, { padding: spacing.base }]}
           renderItem={({ item }) => (
             <CollectionFolderItem
               collection={item}
               onPress={() => handleOpenCollection(item)}
             />
           )}
-          ListEmptyComponent={
-            <EmptyState
-              icon="folder-outline"
-              title="Organize with collections"
-              description="Group your saved posts into folders by topic or idea."
-              actionLabel="New Collection"
-              onAction={() => setIsCreateModalVisible(true)}
-            />
-          }
-          ListFooterComponent={
-            collections.length > 0 ? (
-              <CaughtUpNotice subtitle="All your personal collections." />
-            ) : null
-          }
         />
       )}
 
-      {/* Post Detail Modal */}
+      {/* Modals */}
       <SavedDetailModal
         visible={selectedItem !== null}
         item={selectedItem}
@@ -193,7 +217,6 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         onMoveToCollection={(itemId, colId) => moveItemToCollection(itemId, colId)}
       />
 
-      {/* Create Collection Modal */}
       <CreateCollectionModal
         visible={isCreateModalVisible}
         onClose={() => setIsCreateModalVisible(false)}
@@ -207,6 +230,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  realHeader: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pillBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginRight: 8,
+  },
+  headerIconButton: {
+    padding: 6,
+    borderRadius: 8,
+  },
+  realWebViewContainer: {
+    flex: 1,
+    paddingBottom: 68, // Clearance for floating glass tab bar
+  },
+  realWebView: {
+    flex: 1,
+  },
   tabBar: {
     flexDirection: 'row',
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -215,24 +267,18 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-  },
-  timerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   listContent: {
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
   colWrapper: {
     justifyContent: 'space-between',
+    paddingHorizontal: 12,
   },
   colListContent: {
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
 });
