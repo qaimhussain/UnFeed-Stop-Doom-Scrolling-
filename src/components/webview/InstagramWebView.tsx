@@ -2,7 +2,6 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   View,
   StyleSheet,
-  ActivityIndicator,
   Text,
   TouchableOpacity,
   BackHandler,
@@ -54,10 +53,22 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
   const webViewRef = (ref as React.RefObject<WebView>) || internalWebViewRef;
 
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
+
+  // Auto-dismiss loading overlay quickly (max 900ms) so web content is interactive immediately
+  useEffect(() => {
+    if (isLoading) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+        setHasLoadedOnce(true);
+      }, 900);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   const [blockedState, setBlockedState] = useState<{
     isBlocked: boolean;
@@ -125,6 +136,27 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         return true;
       }
 
+      // If inside DM, prevent navigating to the home feed
+      if (isFromDM) {
+        let reqPath = url;
+        try {
+          reqPath = new URL(url).pathname;
+        } catch {
+          reqPath = url;
+        }
+        if (reqPath === '/' || reqPath === '' || url.includes('instagram.com/?')) {
+          if (webViewRef.current) {
+            webViewRef.current.injectJavaScript(`
+              if (window.location.pathname.indexOf('/direct/t/') !== -1) {
+                window.location.href = '/direct/inbox/';
+              }
+              true;
+            `);
+          }
+          return false;
+        }
+      }
+
       const evaluation: RouteEvaluation = evaluateInstagramUrl(url, {
         isStoryTimeAvailable,
         username: instagramUsername || undefined,
@@ -160,6 +192,12 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     setCanGoBack(navState.canGoBack);
     setCurrentUrl(navState.url);
+
+    // If navigated to home from DM, instantly return to inbox
+    if (isFromDM && (navState.url === 'https://www.instagram.com/' || navState.url === 'https://www.instagram.com/?' || navState.url.startsWith('https://www.instagram.com/?'))) {
+      webViewRef.current?.injectJavaScript(`window.location.href = "${INSTAGRAM_CONFIG.DIRECT_INBOX_URL}"; true;`);
+      return;
+    }
 
     // Also check on nav state changes in case of SPA pushState transitions
     const evaluation = evaluateInstagramUrl(navState.url, {
@@ -224,6 +262,35 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         injectedJavaScript={`
           (function() {
             try {
+              // Signal page ready as soon as DOM is interactive
+              function notifyReady() {
+                window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'PAGE_READY' }));
+              }
+              if (document.readyState === 'interactive' || document.readyState === 'complete') {
+                notifyReady();
+              } else {
+                document.addEventListener('DOMContentLoaded', notifyReady);
+                window.addEventListener('load', notifyReady);
+              }
+
+              // In DM context, intercept any click on home links or IG logo to prevent home feed leak
+              if (${isFromDM ? 'true' : 'false'}) {
+                document.addEventListener('click', function(e) {
+                  var a = e.target && e.target.closest ? e.target.closest('a') : null;
+                  if (a) {
+                    var href = a.getAttribute('href') || '';
+                    if (href === '/' || href === '/?' || href.startsWith('/?') || href.includes('instagram.com/?')) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (window.location.pathname.indexOf('/direct/t/') !== -1) {
+                        window.location.href = '/direct/inbox/';
+                      }
+                      return false;
+                    }
+                  }
+                }, true);
+              }
+
               function detectUser() {
                 var links = document.querySelectorAll('a[href]');
                 var username = null;
@@ -259,9 +326,9 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                   }));
                 }
               }
-              setTimeout(detectUser, 1000);
-              setTimeout(detectUser, 2500);
-              setTimeout(detectUser, 5000);
+              setTimeout(detectUser, 800);
+              setTimeout(detectUser, 2000);
+              setTimeout(detectUser, 4000);
             } catch(e) {}
           })();
           true;
@@ -269,6 +336,10 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         onMessage={(event) => {
           try {
             const data = JSON.parse(event.nativeEvent.data);
+            if (data.type === 'PAGE_READY') {
+              setIsLoading(false);
+              setHasLoadedOnce(true);
+            }
             if ((data.type === 'DETECTED_USERNAME' || data.type === 'DETECTED_USER_PROFILE') && (data.username || data.avatarUrl)) {
               if (data.username && onUsernameDetected) onUsernameDetected(data.username);
               useAppStore.getState().setInstagramLoggedIn(true, data.username, data.avatarUrl);
@@ -283,6 +354,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         }}
         onLoadEnd={() => {
           setIsLoading(false);
+          setHasLoadedOnce(true);
         }}
         onError={(syntheticEvent) => {
           const { nativeEvent } = syntheticEvent;
@@ -296,8 +368,20 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         pullToRefreshEnabled={true}
       />
 
-      {/* Native Skeleton / Shimmer Loader while WebView loads */}
-      {isLoading && !blockedState.isBlocked && !hasError && (
+      {/* Sleek top glowing progress bar on all loads */}
+      {isLoading && (
+        <View style={styles.topProgressBar} pointerEvents="none">
+          <LinearGradient
+            colors={['#FEDA75', '#FA7E1E', '#D62976', '#962FBF', '#4F5BD5']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </View>
+      )}
+
+      {/* Initial cold load skeleton (only before first render, never blocks in-app taps) */}
+      {isLoading && !hasLoadedOnce && !blockedState.isBlocked && !hasError && (
         <View style={[styles.skeletonOverlay, { backgroundColor: colors.background }]} pointerEvents="none">
           <View style={[styles.skeletonHeader, { borderBottomColor: colors.divider }]}>
             <Skeleton width={140} height={18} borderRadius={6} />
@@ -310,24 +394,6 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
             <ChatSkeletonRow />
             <ChatSkeletonRow />
             <ChatSkeletonRow />
-          </View>
-          <View style={styles.loadingPillWrap}>
-            <GlassSurface
-              borderRadius={20}
-              style={styles.loadingCard}
-              elevation={4}
-            >
-              <ActivityIndicator size="small" color="#0095F6" />
-              <Text
-                style={[
-                  typography.caption,
-                  styles.loadingText,
-                  { color: colors.textSecondary },
-                ]}
-              >
-                Connecting...
-              </Text>
-            </GlassSurface>
           </View>
         </View>
       )}
@@ -499,33 +565,13 @@ const styles = StyleSheet.create({
   skeletonRows: {
     paddingTop: 8,
   },
-  loadingPillWrap: {
-    position: 'absolute',
-    bottom: 24,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  loadingOverlay: {
+  topProgressBar: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.08)',
-  },
-  loadingCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-  },
-  loadingText: {
-    marginLeft: 12,
-    fontSize: 13,
+    height: 2.5,
+    zIndex: 99,
   },
   errorOverlay: {
     position: 'absolute',

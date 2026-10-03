@@ -98,17 +98,20 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
 
         {/* Minimal Glass Top Bar with Wordmark */}
         <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
-          <UnfeedWordmark fontSize={32} color={colors.textPrimary} />
+          <UnfeedWordmark fontSize={32} useGradient={true} />
           <View style={styles.headerRightRow}>
-            <View
+            <GlassSurface
+              useRealBlur={true}
+              blurIntensity={35}
+              borderRadius={16}
               style={[
                 styles.pillBadge,
                 {
                   backgroundColor: isWarning
                     ? 'rgba(255, 160, 0, 0.16)'
                     : isDark
-                    ? 'rgba(255,255,255,0.1)'
-                    : 'rgba(0,0,0,0.06)',
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.05)',
                 },
               ]}
             >
@@ -123,7 +126,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
               >
                 {isStoryLimitReached ? '0m left' : `${Math.ceil(remainingSeconds / 60)}m left`}
               </Text>
-            </View>
+            </GlassSurface>
             <TouchableOpacity
               activeOpacity={0.7}
               style={styles.headerIconButton}
