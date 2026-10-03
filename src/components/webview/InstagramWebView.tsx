@@ -76,6 +76,23 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
     message?: string;
   }>({ isBlocked: false });
 
+  // True when the blocked page was reached via an in-page (SPA) navigation, i.e. the
+  // WebView document actually changed. False when the load was cancelled before it started.
+  const blockedBySpaRef = useRef(false);
+
+  const dismissBlocked = useCallback(() => {
+    const needsRestore = blockedBySpaRef.current;
+    blockedBySpaRef.current = false;
+    setBlockedState({ isBlocked: false });
+    // A cancelled load never replaced the page, so there is nothing to reload.
+    if (needsRestore && webViewRef.current) {
+      webViewRef.current.injectJavaScript(
+        `(function(){try{if(window.history.length>1){window.history.back();}else{window.location.replace("${fallbackUrl}");}}catch(e){window.location.replace("${fallbackUrl}");}})();true;`
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fallbackUrl]);
+
   const isStoryTimeAvailable = useAppStore(
     (state) => (state.storyTimeUsage?.secondsUsed ?? 0) < 1200
   );
@@ -87,12 +104,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
 
     const onBackPress = () => {
       if (blockedState.isBlocked) {
-        setBlockedState({ isBlocked: false });
-        if (webViewRef.current) {
-          webViewRef.current.injectJavaScript(
-            `window.location.href = "${fallbackUrl}"; true;`
-          );
-        }
+        dismissBlocked();
         return true;
       }
 
@@ -120,7 +132,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
       onBackPress
     );
     return () => subscription.remove();
-  }, [canGoBack, blockedState, fallbackUrl, isFromDM, currentUrl]);
+  }, [canGoBack, blockedState, fallbackUrl, isFromDM, currentUrl, dismissBlocked]);
 
   // Request filter to block doomscrolling URLs before loading
   const handleShouldStartLoadWithRequest = useCallback(
@@ -166,6 +178,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
       });
 
       if (!evaluation.isAllowed) {
+        blockedBySpaRef.current = false;
         setBlockedState({
           isBlocked: true,
           category: evaluation.category,
@@ -209,12 +222,14 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
     });
 
     if (!evaluation.isAllowed) {
+      blockedBySpaRef.current = true;
       setBlockedState({
         isBlocked: true,
         category: evaluation.category,
         message: evaluation.blockMessage,
       });
     } else {
+      blockedBySpaRef.current = false;
       if (blockedState.isBlocked) {
         setBlockedState({ isBlocked: false });
       }
@@ -229,12 +244,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
   };
 
   const handleReturnToAllowed = () => {
-    setBlockedState({ isBlocked: false });
-    if (webViewRef.current) {
-      webViewRef.current.injectJavaScript(
-        `window.location.href = "${fallbackUrl}"; true;`
-      );
-    }
+    dismissBlocked();
   };
 
   const handleRetry = () => {

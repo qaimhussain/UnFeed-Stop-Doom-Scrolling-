@@ -35,6 +35,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { GlassSurface } from '../focus/GlassSurface';
+import { GlassBar } from '../common/GlassBar';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAppStore } from '../../store/useAppStore';
 import { storyTimeService } from '../../services/storyTimeService';
@@ -146,6 +147,9 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
       ]}
       pointerEvents="box-none"
     >
+      {/* Liquid glass bezel behind the capsule (replaces the flat dark strip) */}
+      <GlassBar position="bottom" pointerEvents="none" style={styles.bezel} />
+
       <GlassSurface
         useRealBlur={!reduceEffects}
         blurIntensity={isDark ? 50 : 35}
@@ -326,6 +330,13 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
     zIndex: 999,
+  },
+  bezel: {
+    position: 'absolute',
+    top: -8,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   container: {
     height: TAB_BAR_HEIGHT,

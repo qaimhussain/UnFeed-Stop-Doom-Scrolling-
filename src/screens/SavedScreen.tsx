@@ -16,6 +16,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
+import { GlassBar } from '../components/common/GlassBar';
 import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { SavedGridThumbnail } from '../components/saved/SavedGridThumbnail';
 import { CollectionFolderItem } from '../components/saved/CollectionFolderItem';
@@ -94,7 +95,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
         {/* Minimal Glass Top Bar with Wordmark */}
-        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+        <GlassBar position="top" style={[styles.realHeader, { borderBottomWidth: 0 }]}>
           {isViewingSingleSavedPost ? (
             <TouchableOpacity
               activeOpacity={0.7}
@@ -127,7 +128,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
           </View>
-        </View>
+        </GlassBar>
 
         {/* Real Instagram Saved Posts WebView */}
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>

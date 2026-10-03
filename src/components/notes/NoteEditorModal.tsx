@@ -81,7 +81,7 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
   const [prevVisible, setPrevVisible] = useState(visible);
   const [prevNoteId, setPrevNoteId] = useState<string | null>(null);
 
-  if (visible !== prevVisible || (visible && note?.id !== prevNoteId)) {
+  if (visible !== prevVisible || (visible && (note?.id ?? null) !== prevNoteId)) {
     setPrevVisible(visible);
     setPrevNoteId(note?.id || null);
     if (note) {
