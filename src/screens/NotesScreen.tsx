@@ -8,7 +8,7 @@ import {
   StatusBar,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -29,6 +29,7 @@ interface NotesScreenProps {
 }
 
 export const NotesScreen: React.FC<NotesScreenProps> = () => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, isDark, spacing } = useTheme();
   const personalNotes = useAppStore((state) => state.personalNotes);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -43,6 +44,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = () => {
   const [editingNote, setEditingNote] = useState<PersonalNote | null>(null);
   const [isNewNoteModalVisible, setIsNewNoteModalVisible] = useState(false);
   const [isShortNoteModalVisible, setIsShortNoteModalVisible] = useState(false);
+
+  // Clearance so notes list footer is never hidden behind floating tab bar
+  const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
 
   // Separate pinned and unpinned notes
   const filteredNotes = personalNotes.filter((n) => {
@@ -186,7 +190,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = () => {
             <CaughtUpNotice subtitle="All personal notes displayed. Encrypted and stored locally." />
           ) : null
         }
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: bottomTabBarClearance + 24 }]}
       />
 
       {/* Note Editor Modal */}

@@ -82,6 +82,14 @@ const TAB_CONFIGS: Record<string, TabItemConfig> = {
   },
 };
 
+// Tab Bar Layout constants
+export const TAB_BAR_HEIGHT = 50;
+
+export const getTabBarFullHeight = (insetsBottom: number = 0): number => {
+  const bottomOffset = Math.max(insetsBottom, Platform.OS === 'android' ? 10 : 16);
+  return TAB_BAR_HEIGHT + bottomOffset;
+};
+
 export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
   state,
   navigation,
@@ -106,7 +114,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
 
   // Tab calculations
   const containerMargin = 16;
-  const containerPadding = 6;
+  const containerPadding = 4;
   const containerWidth = SCREEN_WIDTH - containerMargin * 2;
   const tabWidth = (containerWidth - containerPadding * 2) / state.routes.length;
 
@@ -128,19 +136,21 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
     };
   });
 
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16);
+
   return (
     <View
       style={[
         styles.floatingWrapper,
-        { paddingBottom: Math.max(insets.bottom, Platform.OS === 'android' ? 12 : 20) },
+        { paddingBottom: bottomPadding },
       ]}
       pointerEvents="box-none"
     >
       <GlassSurface
-        useRealBlur={true}
-        blurIntensity={65}
-        borderRadius={32}
-        elevation={8}
+        useRealBlur={!reduceEffects}
+        blurIntensity={isDark ? 50 : 35}
+        borderRadius={25}
+        elevation={6}
         style={[
           styles.container,
           {
@@ -152,7 +162,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
         ]}
       >
         <View style={[styles.innerContent, { paddingHorizontal: containerPadding }]}>
-          {/* Sliding Highlight Pill under active tab icon (LiquidBottomTabs style) */}
+          {/* Sliding Highlight Pill under active tab icon */}
           <Animated.View
             style={[
               styles.slidingPill,
@@ -266,11 +276,13 @@ const TabItemButton: React.FC<TabItemButtonProps> = ({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       style={[styles.tabButton, { width: tabWidth }]}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: isFocused }}
     >
       <Animated.View style={[styles.tabIconWrap, animatedStyle]}>
         <Ionicons
           name={isFocused ? config.activeIcon : config.inactiveIcon}
-          size={24}
+          size={22}
           color={
             isLocked
               ? colors.textSecondary
@@ -313,12 +325,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     alignItems: 'center',
-    paddingBottom: Platform.OS === 'android' ? 14 : 20,
     zIndex: 999,
   },
   container: {
-    height: 62,
-    borderRadius: 31,
+    height: TAB_BAR_HEIGHT,
+    borderRadius: 25,
   },
   innerContent: {
     flex: 1,
@@ -328,14 +339,15 @@ const styles = StyleSheet.create({
   },
   slidingPill: {
     position: 'absolute',
-    top: 6,
-    bottom: 6,
-    left: 6,
-    borderRadius: 25,
+    top: 4,
+    bottom: 4,
+    left: 4,
+    borderRadius: 21,
     borderWidth: 0.5,
   },
   tabButton: {
     height: '100%',
+    minHeight: 48,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
@@ -343,13 +355,13 @@ const styles = StyleSheet.create({
   tabIconWrap: {
     alignItems: 'center',
     justifyContent: 'center',
-    width: 44,
-    height: 44,
+    width: 48,
+    height: 48,
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
+    top: 4,
+    right: 4,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -364,16 +376,16 @@ const styles = StyleSheet.create({
   },
   dotBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 6,
+    right: 6,
     width: 8,
     height: 8,
     borderRadius: 4,
   },
   lockBadge: {
     position: 'absolute',
-    bottom: 2,
-    right: 2,
+    bottom: 4,
+    right: 4,
     width: 14,
     height: 14,
     borderRadius: 7,

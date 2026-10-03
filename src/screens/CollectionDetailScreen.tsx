@@ -8,7 +8,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -33,6 +33,7 @@ export const CollectionDetailScreen: React.FC<CollectionDetailScreenProps> = ({
   route,
   navigation,
 }) => {
+  const insets = useSafeAreaInsets();
   const { collectionId } = route.params;
   const { colors, typography, spacing } = useTheme();
 
@@ -123,6 +124,7 @@ export const CollectionDetailScreen: React.FC<CollectionDetailScreenProps> = ({
         data={items}
         keyExtractor={(item) => item.id}
         numColumns={3}
+        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 24) + 24 }}
         renderItem={({ item }) => (
           <SavedGridThumbnail item={item} onPress={() => setSelectedItem(item)} />
         )}

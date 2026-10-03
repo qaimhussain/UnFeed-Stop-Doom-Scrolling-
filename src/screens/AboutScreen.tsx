@@ -8,7 +8,7 @@ import {
   Linking,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -21,6 +21,7 @@ interface AboutScreenProps {
 }
 
 export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, isDark } = useTheme();
 
   const handleOpenUrl = (url: string) => {
@@ -43,7 +44,7 @@ export const AboutScreen: React.FC<AboutScreenProps> = ({ navigation }) => {
       />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 32 }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Brand Showcase */}

@@ -12,7 +12,7 @@ import {
   Image,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -32,6 +32,7 @@ interface ChatDetailScreenProps {
 }
 
 export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navigation }) => {
+  const insets = useSafeAreaInsets();
   const { conversationId } = route.params;
   const { colors, typography, spacing } = useTheme();
 
@@ -312,7 +313,7 @@ export const ChatDetailScreen: React.FC<ChatDetailScreenProps> = ({ route, navig
             elevation={4}
             style={styles.chatInputGlass}
           >
-            <View style={styles.inputContainer}>
+            <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 8) }]}>
               <TouchableOpacity
                 onPress={handleSendPhoto}
                 style={styles.actionBtn}

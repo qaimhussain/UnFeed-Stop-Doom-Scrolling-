@@ -10,7 +10,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -36,6 +36,7 @@ interface MessagesScreenProps {
 }
 
 export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, isDark } = useTheme();
   const currentUser = useAppStore((state) => state.currentUser);
   const userNote = useAppStore((state) => state.userNote);
@@ -53,6 +54,9 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isNoteModalVisible, setIsNoteModalVisible] = useState(false);
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
+
+  // Clearance for floating tab bar so content is never hidden behind it
+  const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -141,13 +145,14 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
             style={styles.headerIconButton}
             onPress={handleOpenSettings}
             accessibilityLabel="Settings"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
           </TouchableOpacity>
         </View>
 
         {/* Real Instagram Messages WebView */}
-        <View style={styles.realWebViewContainer}>
+        <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>
           <InstagramWebView
             initialUrl={INSTAGRAM_CONFIG.DIRECT_INBOX_URL}
             fallbackUrl={INSTAGRAM_CONFIG.DIRECT_INBOX_URL}
@@ -258,7 +263,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
             <CaughtUpNotice subtitle="You're caught up with all your direct messages." />
           ) : null
         }
-        contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
+        contentContainerStyle={[styles.listContent, { paddingBottom: bottomTabBarClearance + 24 }]}
       />
 
       {/* 60 Char Short Note Modal */}
@@ -306,12 +311,14 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerIconButton: {
-    padding: 6,
-    borderRadius: 8,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
   },
   realWebViewContainer: {
     flex: 1,
-    paddingBottom: 68, // clearance for floating glass tab bar
   },
   realWebView: {
     flex: 1,

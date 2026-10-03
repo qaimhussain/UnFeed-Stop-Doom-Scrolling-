@@ -9,7 +9,7 @@ import {
   Platform,
   TouchableOpacity,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -28,6 +28,7 @@ interface StoriesScreenProps {
 }
 
 export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, isDark, spacing } = useTheme();
   const stories = useAppStore((state) => state.stories);
   const isDemoMode = useAppStore((state) => state.isDemoMode);
@@ -35,6 +36,9 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
 
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Clearance so content stops right above floating tab bar
+  const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -70,6 +74,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
               style={styles.headerIconButton}
               onPress={() => navigation.navigate('Settings')}
               accessibilityLabel="Settings"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -77,7 +82,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Real Instagram Stories Tray & Viewer (Feed hidden via CSS) */}
-        <View style={styles.realWebViewContainer}>
+        <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>
           <InstagramWebView
             initialUrl={INSTAGRAM_CONFIG.BASE_URL}
             fallbackUrl={INSTAGRAM_CONFIG.BASE_URL}
@@ -109,7 +114,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
         data={stories}
         keyExtractor={(item) => item.id}
         numColumns={2}
-        contentContainerStyle={[styles.gridContent, { padding: spacing.xs }]}
+        contentContainerStyle={[styles.gridContent, { padding: spacing.xs, paddingBottom: bottomTabBarClearance + 24 }]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -177,12 +182,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   headerIconButton: {
-    padding: 6,
-    borderRadius: 8,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
   },
   realWebViewContainer: {
     flex: 1,
-    paddingBottom: 68, // Clearance for floating glass tab bar
   },
   realWebView: {
     flex: 1,

@@ -9,7 +9,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -31,6 +31,7 @@ interface SavedScreenProps {
 }
 
 export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, isDark, spacing } = useTheme();
   const savedItems = useAppStore((state) => state.savedItems);
   const collections = useAppStore((state) => state.collections);
@@ -43,6 +44,9 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'collections'>('all');
   const [selectedItem, setSelectedItem] = useState<SavedItem | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+
+  // Clearance so content stops right above floating tab bar
+  const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
 
   const handleTabChange = (tab: 'all' | 'collections') => {
     if (Platform.OS !== 'web') {
@@ -75,6 +79,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               style={styles.headerIconButton}
               onPress={() => navigation.navigate('Settings')}
               accessibilityLabel="Settings"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
             </TouchableOpacity>
@@ -82,7 +87,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         </View>
 
         {/* Real Instagram Saved Posts WebView */}
-        <View style={styles.realWebViewContainer}>
+        <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>
           <InstagramWebView
             initialUrl={INSTAGRAM_CONFIG.SAVED_URL}
             fallbackUrl="https://www.instagram.com/saved/"
@@ -171,7 +176,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           data={savedItems}
           keyExtractor={(item) => item.id}
           numColumns={3}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[styles.listContent, { paddingBottom: bottomTabBarClearance + 24 }]}
           renderItem={({ item }) => (
             <SavedGridThumbnail
               item={item}
@@ -196,7 +201,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           data={collections}
           keyExtractor={(item) => item.id}
           numColumns={2}
-          contentContainerStyle={styles.colListContent}
+          contentContainerStyle={[styles.colListContent, { paddingBottom: bottomTabBarClearance + 24 }]}
           columnWrapperStyle={styles.colWrapper}
           renderItem={({ item }) => (
             <CollectionFolderItem
@@ -249,12 +254,14 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   headerIconButton: {
-    padding: 6,
-    borderRadius: 8,
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 24,
   },
   realWebViewContainer: {
     flex: 1,
-    paddingBottom: 68, // Clearance for floating glass tab bar
   },
   realWebView: {
     flex: 1,
@@ -270,6 +277,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 12,
     paddingHorizontal: 16,
+    minHeight: 48,
   },
   listContent: {
     paddingBottom: 80,

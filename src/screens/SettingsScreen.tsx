@@ -9,7 +9,7 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
@@ -26,6 +26,7 @@ interface SettingsScreenProps {
 }
 
 export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
   const { colors, typography, themeMode, setThemeMode, isDark, spacing } = useTheme();
   const screenTime = useAppStore((state) => state.screenTime);
   const focusSettings = useAppStore((state) => state.focusSettings);
@@ -77,7 +78,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         }}
       />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 32 }]}>
         {/* Daily Screen Time Activity Card */}
         <GlassSurface
           borderRadius={16}
