@@ -224,6 +224,73 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   const orb2Color = isDark ? 'rgba(150, 47, 191, 0.14)' : 'rgba(214, 41, 118, 0.07)';
   const orb3Color = isDark ? 'rgba(79, 91, 213, 0.12)' : 'rgba(79, 91, 213, 0.06)';
 
+  // Carousel benefit slides
+  const CAROUSEL_BENEFITS = [
+    {
+      icon: 'hourglass-outline',
+      gradient: ['#FA7E1E', '#D62976'] as [string, string],
+      title: 'Save Hours Every Day',
+      desc: 'Eliminate unconscious scroll binges so you can invest time into real-world goals and focus.',
+    },
+    {
+      icon: 'ban-outline',
+      gradient: ['#D62976', '#962FBF'] as [string, string],
+      title: 'Kill the Dopamine Loop',
+      desc: 'No home feed, no explore traps, and no infinite reels designed to steal your attention.',
+    },
+    {
+      icon: 'chatbubble-ellipses-outline',
+      gradient: ['#3797F0', '#4F5BD5'] as [string, string],
+      title: 'Essential Tools Only',
+      desc: 'Answer direct messages, check friends’ stories, grab your saved notes — then get back to life.',
+    },
+  ];
+
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [slideAnim] = useState(() => new Animated.Value(0));
+  const [fadeAnim] = useState(() => new Animated.Value(1));
+
+  const goToSlide = (nextIndex: number) => {
+    if (nextIndex === activeSlide) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    const direction = nextIndex > activeSlide ? 1 : -1;
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -16 * direction,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setActiveSlide(nextIndex);
+      slideAnim.setValue(16 * direction);
+      Animated.parallel([
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          tension: 75,
+          friction: 9,
+          useNativeDriver: true,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 180,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const handleNextSlide = () => {
+    const next = (activeSlide + 1) % CAROUSEL_BENEFITS.length;
+    goToSlide(next);
+  };
+
   return (
     <SafeAreaView style={styles.outer} edges={['top', 'bottom']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} translucent backgroundColor="transparent" />
@@ -265,75 +332,104 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       {/* ── Main content ── */}
       <View style={styles.mainContent}>
 
-        {/* Hero: Modern typography-first branding focused on stopping doomscrolling */}
+        {/* Hero Section */}
         <View style={styles.heroSection}>
-          <GlassSurface
-            useRealBlur={true}
-            blurIntensity={35}
-            borderRadius={20}
-            style={[
-              styles.pillHeroBadge,
-              {
-                borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-              },
-            ]}
-          >
-            <Ionicons name="flash" size={13} color="#FA7E1E" style={{ marginRight: 6 }} />
-            <Text style={[styles.pillHeroText, { color: colors.textSecondary }]}>
-              STOP DOOMSCROLLING • RECLAIM YOUR TIME
-            </Text>
-          </GlassSurface>
-
-          <UnfeedWordmark fontSize={54} useGradient={true} align="center" style={{ marginTop: 18 }} />
+          <UnfeedWordmark fontSize={60} useGradient={true} align="center" style={{ marginTop: 10 }} />
           <Text style={[styles.tagline, { color: colors.textPrimary }]}>
             Stop Procrastinating. Reclaim Your Life.
           </Text>
           <Text style={[styles.subTagline, { color: colors.textSecondary }]}>
-            Break the infinite scrolling trap. Invest your precious hours into what truly matters instead of wasting them on algorithmic feeds.
+            Your calm companion to Instagram.
           </Text>
         </View>
 
-        {/* Glass feature card focused on time freedom */}
+        {/* Interactive Benefit Carousel Card */}
         <GlassSurface
           useRealBlur={true}
           blurIntensity={isDark ? 55 : 35}
           borderRadius={24}
           elevation={isDark ? 10 : 6}
           highlightIntensity={isDark ? 0.16 : 0.08}
-          style={styles.featureCard}
+          style={styles.carouselCard}
         >
-          <FeatureRow
-            icon="hourglass-outline"
-            title="Save Hours Every Day"
-            desc="Eliminate unconscious scroll binges so you can focus on real-world work, learning, and passions."
-            isDark={isDark}
-            colors={colors}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-          <FeatureRow
-            icon="ban-outline"
-            title="Kill the Dopamine Loop"
-            desc="No home feed, no explore traps, and no infinite reels designed to steal your attention."
-            isDark={isDark}
-            colors={colors}
-          />
-          <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-          <FeatureRow
-            icon="checkbox-outline"
-            title="Intentional Utility Only"
-            desc="Answer direct messages, check friends' stories, grab your saved notes — then get back to your day."
-            isDark={isDark}
-            colors={colors}
-          />
+          <Animated.View
+            style={[
+              styles.slideContent,
+              {
+                opacity: fadeAnim,
+                transform: [{ translateX: slideAnim }],
+              },
+            ]}
+          >
+            <View style={styles.slideHeaderRow}>
+              <LinearGradient
+                colors={CAROUSEL_BENEFITS[activeSlide].gradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.slideIconWrap}
+              >
+                <Ionicons
+                  name={CAROUSEL_BENEFITS[activeSlide].icon as any}
+                  size={20}
+                  color="#FFFFFF"
+                />
+              </LinearGradient>
+              <Text style={[styles.slideTitle, { color: colors.textPrimary }]}>
+                {CAROUSEL_BENEFITS[activeSlide].title}
+              </Text>
+            </View>
+
+            <Text style={[styles.slideDesc, { color: colors.textSecondary }]}>
+              {CAROUSEL_BENEFITS[activeSlide].desc}
+            </Text>
+          </Animated.View>
+
+          {/* Carousel footer: Pagination indicators + Next arrow */}
+          <View style={[styles.carouselFooter, { borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
+            <View style={styles.dotsRow}>
+              {CAROUSEL_BENEFITS.map((_, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  activeOpacity={0.7}
+                  onPress={() => goToSlide(idx)}
+                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+                >
+                  <View
+                    style={[
+                      styles.dot,
+                      idx === activeSlide
+                        ? [styles.activeDot, { backgroundColor: colors.accent }]
+                        : [styles.inactiveDot, { backgroundColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)' }],
+                    ]}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.75}
+              onPress={handleNextSlide}
+              style={[
+                styles.nextArrowBtn,
+                {
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)',
+                  borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
+                },
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              accessibilityLabel="Next feature"
+            >
+              <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
         </GlassSurface>
 
         {/* Action buttons */}
         <View style={styles.actionSection}>
-          {/* Primary: gradient CTA */}
           <TouchableOpacity
             activeOpacity={0.85}
             onPress={handleStartLogin}
+            style={styles.loginButtonWrapper}
           >
             <LinearGradient
               colors={['#3797F0', '#6A53AE', '#9B33B5']}
@@ -342,11 +438,10 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
               style={styles.loginButton}
             >
               <Ionicons name="logo-instagram" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-              <Text style={styles.loginButtonText}>Break the Scroll — Continue with Instagram</Text>
+              <Text style={styles.loginButtonText}>Continue with Instagram</Text>
             </LinearGradient>
           </TouchableOpacity>
 
-          {/* Secondary: ghost demo button */}
           <TouchableOpacity
             activeOpacity={0.7}
             style={[
@@ -370,7 +465,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           </TouchableOpacity>
 
           <Text style={[styles.privacyNote, { color: colors.textTertiary }]}>
-            {"Unfeed uses Instagram's official mobile website inside a secure webview."}{'\n'}
+            {"Unfeed connects securely to Instagram's official mobile site."}{'\n'}
             We never access, intercept, or store your login credentials.
           </Text>
         </View>
@@ -470,32 +565,6 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   );
 };
 
-// ── Sub-component ──────────────────────────────────────────────────────
-interface FeatureRowProps {
-  icon: any;
-  title: string;
-  desc: string;
-  isDark: boolean;
-  colors: any;
-}
-
-const FeatureRow: React.FC<FeatureRowProps> = ({ icon, title, desc, isDark, colors }) => (
-  <View style={styles.featureRow}>
-    <LinearGradient
-      colors={['rgba(55,151,240,0.20)', 'rgba(150,47,191,0.15)']}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={styles.featureIconWrap}
-    >
-      <Ionicons name={icon} size={20} color="#0095F6" />
-    </LinearGradient>
-    <View style={styles.featureTextWrap}>
-      <Text style={[styles.featureTitle, { color: colors.textPrimary }]}>{title}</Text>
-      <Text style={[styles.featureDesc, { color: colors.textSecondary }]}>{desc}</Text>
-    </View>
-  </View>
-);
-
 // ── Styles ─────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   outer: {
@@ -533,24 +602,7 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 10,
-  },
-  pillHeroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-  },
-  pillHeroText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-  },
-  wordmark: {
-    fontSize: 36,
-    fontWeight: '800',
-    letterSpacing: -1.2,
+    marginTop: 8,
   },
   tagline: {
     fontSize: 17,
@@ -562,47 +614,80 @@ const styles = StyleSheet.create({
   subTagline: {
     fontSize: 13,
     lineHeight: 18,
-    marginTop: 6,
+    marginTop: 5,
     textAlign: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     letterSpacing: 0.1,
   },
-  featureCard: {
+  carouselCard: {
     padding: 20,
     marginVertical: 14,
+    minHeight: 160,
   },
-  featureRow: {
+  slideContent: {
+    minHeight: 88,
+    justifyContent: 'center',
+  },
+  slideHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 10,
+    marginBottom: 8,
   },
-  featureIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  slideIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 14,
+    marginRight: 12,
   },
-  featureTextWrap: {
-    flex: 1,
+  slideTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
-  featureTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 2,
+  slideDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    paddingLeft: 50,
   },
-  featureDesc: {
-    fontSize: 12,
-    lineHeight: 17,
+  carouselFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 14,
+    marginTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    marginVertical: 6,
-    marginLeft: 58,
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  activeDot: {
+    width: 22,
+  },
+  inactiveDot: {
+    width: 6,
+  },
+  nextArrowBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   actionSection: {
     alignItems: 'center',
+  },
+  loginButtonWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
   loginButton: {
     flexDirection: 'row',
