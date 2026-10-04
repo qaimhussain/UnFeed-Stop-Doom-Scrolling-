@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Platform,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -41,6 +42,29 @@ export const NoteItem: React.FC<NoteItemProps> = ({
     onTogglePin();
   };
 
+  const handleDelete = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    Alert.alert(
+      'Delete Note',
+      `Delete "${note.title || 'Untitled Note'}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            }
+            onDelete();
+          },
+        },
+      ]
+    );
+  };
+
   const hasChecklist =
     note.blocks?.some((b) => b.type === 'checklist') ??
     (note.content.includes('[ ]') || note.content.includes('[x]'));
@@ -75,17 +99,32 @@ export const NoteItem: React.FC<NoteItemProps> = ({
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={handlePin}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.pinBtn}
-        >
-          <Ionicons
-            name={note.isPinned ? 'pin' : 'pin-outline'}
-            size={18}
-            color={note.isPinned ? colors.accent : colors.textSecondary}
-          />
-        </TouchableOpacity>
+        <View style={styles.topActionsRow}>
+          <TouchableOpacity
+            onPress={handlePin}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={styles.pinBtn}
+            accessibilityLabel={note.isPinned ? "Unpin note" : "Pin note"}
+          >
+            <Ionicons
+              name={note.isPinned ? 'pin' : 'pin-outline'}
+              size={18}
+              color={note.isPinned ? colors.accent : colors.textSecondary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDelete}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            style={[styles.pinBtn, { marginLeft: 10 }]}
+            accessibilityLabel="Delete note"
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {note.blocks && note.blocks.length > 0 ? (
@@ -172,6 +211,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
     marginRight: 8,
+  },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   pinBtn: {
     padding: 2,

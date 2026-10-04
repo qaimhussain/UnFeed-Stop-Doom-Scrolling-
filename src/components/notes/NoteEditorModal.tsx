@@ -10,6 +10,7 @@ import {
   Platform,
   ScrollView,
   BackHandler,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -138,6 +139,31 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
     onClose();
   };
 
+  const handleDeleteNote = () => {
+    if (!note || !onDelete) return;
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    Alert.alert(
+      'Delete Note',
+      `Are you sure you want to delete "${title || note.title || 'this note'}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            }
+            onDelete(note.id);
+            onClose();
+          },
+        },
+      ]
+    );
+  };
+
   const handleAddBlock = (type: NoteBlockType) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -205,9 +231,21 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
             {note ? 'Edit Note' : 'New Note'}
           </Text>
 
-          <TouchableOpacity onPress={handleSave} style={styles.headerBtn}>
-            <Text style={[typography.bodyBold, { color: colors.accent }]}>Done</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            {note && onDelete && (
+              <TouchableOpacity
+                onPress={handleDeleteNote}
+                style={[styles.headerBtn, { marginRight: 8 }]}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Delete note"
+              >
+                <Ionicons name="trash-outline" size={20} color="#FF3B30" />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleSave} style={styles.headerBtn}>
+              <Text style={[typography.bodyBold, { color: colors.accent }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <KeyboardAvoidingView
@@ -326,6 +364,19 @@ export const NoteEditorModal: React.FC<NoteEditorModalProps> = ({
                 );
               })}
             </View>
+
+            {note && onDelete && (
+              <TouchableOpacity
+                onPress={handleDeleteNote}
+                style={[styles.deleteNoteRow, { borderColor: colors.divider }]}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="trash-outline" size={17} color="#FF3B30" style={{ marginRight: 6 }} />
+                <Text style={[typography.bodyMedium, { color: '#FF3B30', fontWeight: '600' }]}>
+                  Delete Note
+                </Text>
+              </TouchableOpacity>
+            )}
           </ScrollView>
 
           {/* Block Creation & Formatting Floating Toolbar */}
@@ -471,5 +522,16 @@ const styles = StyleSheet.create({
   toolDivider: {
     width: 1,
     height: 20,
+  },
+  deleteNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 36,
+    marginBottom: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 0.5,
   },
 });

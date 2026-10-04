@@ -47,6 +47,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const [selectedItem, setSelectedItem] = useState<SavedItem | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [showOfflineVault, setShowOfflineVault] = useState(false);
   const webViewRef = useRef<any>(null);
 
   // Clearance so content stops right above floating tab bar
@@ -87,8 +88,8 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     navigation.navigate('CollectionDetail', { collectionId: collection.id });
   };
 
-  // Real Instagram Saved Posts Mode (Logged in with real account)
-  if (!isDemoMode && isInstagramLoggedIn) {
+  // Real Instagram Saved Posts Mode (Logged in with real account and not explicitly viewing offline vault)
+  if (!isDemoMode && isInstagramLoggedIn && !showOfflineVault) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
@@ -112,6 +113,31 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           )}
 
           <View style={styles.headerRightRow}>
+            {/* Quick jump to Offline Cached Vault */}
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[
+                styles.pillBadge,
+                {
+                  backgroundColor: colors.surfaceSecondary,
+                  borderColor: colors.divider,
+                  borderWidth: 0.5,
+                  paddingHorizontal: 8,
+                  paddingVertical: 5,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  marginRight: 6,
+                },
+              ]}
+              onPress={() => setShowOfflineVault(true)}
+              accessibilityLabel="Open Offline Saved Vault"
+            >
+              <Ionicons name="cloud-offline-outline" size={13} color={colors.accent} style={{ marginRight: 4 }} />
+              <Text style={[typography.captionBold, { color: colors.accent, fontSize: 11 }]}>
+                Offline Vault
+              </Text>
+            </TouchableOpacity>
+
             <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
               <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
                 {currentUrl.includes('/reel/') || currentUrl.includes('/reels/') ? 'Reel' : isViewingSingleSavedPost ? 'Post' : 'Saved'}
@@ -146,14 +172,22 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     );
   }
 
-  // Demo Mode Saved Collections
+  // Offline Saved Collections & Vault View
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <Header
-        title="Saved (Demo)"
+        title={!isDemoMode && isInstagramLoggedIn ? "Offline Saved Vault" : "Saved"}
+        leftAction={
+          !isDemoMode && isInstagramLoggedIn
+            ? {
+                icon: 'arrow-back',
+                onPress: () => setShowOfflineVault(false),
+              }
+            : undefined
+        }
         rightActions={[
           {
             icon: 'add-outline',
@@ -161,6 +195,22 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
           },
         ]}
       />
+
+      {/* Offline Status Banner */}
+      <View
+        style={[
+          styles.offlineNoticeBar,
+          {
+            backgroundColor: isDark ? 'rgba(0,149,246,0.1)' : 'rgba(0,149,246,0.06)',
+            borderColor: colors.divider,
+          },
+        ]}
+      >
+        <Ionicons name="cloud-offline-outline" size={14} color={colors.accent} style={{ marginRight: 6 }} />
+        <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
+          Offline Peace of Mind • All saved posts & collections are locally cached.
+        </Text>
+      </View>
 
       {/* Segmented Tab Bar */}
       <View style={[styles.tabBar, { borderBottomColor: colors.divider }]}>
@@ -342,5 +392,12 @@ const styles = StyleSheet.create({
   },
   colListContent: {
     paddingBottom: 80,
+  },
+  offlineNoticeBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 7,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
 });

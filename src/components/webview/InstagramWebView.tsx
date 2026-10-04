@@ -280,7 +280,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         javaScriptEnabled={true}
         thirdPartyCookiesEnabled={true}
         cacheEnabled={true}
-        cacheMode="LOAD_DEFAULT"
+        cacheMode="LOAD_CACHE_ELSE_NETWORK"
         androidLayerType="hardware"
         injectedJavaScriptBeforeContentLoaded={isFromDM || isFromSaved ? `${INJECTED_INSTAGRAM_CSS}\n${SINGLE_REEL_LOCK_JS}` : INJECTED_INSTAGRAM_CSS}
         injectedJavaScript={`
@@ -428,9 +428,35 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         </View>
       )}
 
-      {/* Glass Error / Offline State */}
-      {hasError && !blockedState.isBlocked && (
-        <View style={[styles.errorOverlay, { backgroundColor: isDark ? 'rgba(0,0,0,0.70)' : 'rgba(0,0,0,0.40)' }]}>
+      {/* Non-intrusive floating offline chip when cached content is already rendered */}
+      {hasError && hasLoadedOnce && !blockedState.isBlocked && (
+        <View style={styles.floatingOfflineChipWrap} pointerEvents="box-none">
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={35}
+            borderRadius={20}
+            elevation={4}
+            style={styles.floatingOfflineChip}
+          >
+            <Ionicons name="cloud-offline-outline" size={15} color={colors.accent} style={{ marginRight: 6 }} />
+            <Text style={[typography.captionBold, { color: colors.textPrimary, fontSize: 12 }]}>
+              Offline • Showing Cached View
+            </Text>
+            <TouchableOpacity
+              onPress={handleRetry}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{ marginLeft: 8 }}
+              accessibilityLabel="Retry loading"
+            >
+              <Ionicons name="refresh" size={14} color={colors.accent} />
+            </TouchableOpacity>
+          </GlassSurface>
+        </View>
+      )}
+
+      {/* Peaceful Offline Screen when cold launching offline with no prior cache */}
+      {hasError && !hasLoadedOnce && !blockedState.isBlocked && (
+        <View style={[styles.errorOverlay, { backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(245,245,247,0.92)' }]}>
           <GlassSurface
             useRealBlur={true}
             blurIntensity={isDark ? 55 : 35}
@@ -445,7 +471,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
               end={{ x: 1, y: 1 }}
               style={styles.errorIconWrap}
             >
-              <Ionicons name="cloud-offline-outline" size={34} color="#8E8E8E" />
+              <Ionicons name="cloud-offline-outline" size={32} color={colors.accent} />
             </LinearGradient>
             <Text
               style={[
@@ -454,7 +480,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                 { color: colors.textPrimary },
               ]}
             >
-              Unable to load Instagram
+              Offline Peace of Mind
             </Text>
             <Text
               style={[
@@ -463,7 +489,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                 { color: colors.textSecondary },
               ]}
             >
-              {errorMessage || 'Please check your internet connection and try again.'}
+              No internet connection detected. Still-Gram keeps your personal notes, checklists, and saved posts ready locally without disturbances.
             </Text>
             <TouchableOpacity
               activeOpacity={0.85}
@@ -477,7 +503,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                 style={styles.retryButton}
               >
                 <Ionicons name="refresh" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
-                <Text style={styles.retryButtonText}>Try Again</Text>
+                <Text style={styles.retryButtonText}>Check Connection</Text>
               </LinearGradient>
             </TouchableOpacity>
           </GlassSurface>
@@ -662,5 +688,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
+  },
+  floatingOfflineChipWrap: {
+    position: 'absolute',
+    top: 10,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 99,
+  },
+  floatingOfflineChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
 });
