@@ -69,7 +69,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       Alert.alert(
         '✓ Daily Limit Set',
         minutes !== null
-          ? `Your daily focus target is now ${minutes} minutes. The remaining time in your top header has been updated.`
+          ? `Your daily focus target is now ${minutes} minutes.`
           : 'Daily focus limit has been turned off.'
       );
     }

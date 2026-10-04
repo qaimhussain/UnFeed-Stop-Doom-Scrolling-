@@ -248,7 +248,7 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
             <EmptyState
               icon="chatbubbles-outline"
               title="No messages yet"
-              description="Connect with close friends directly without any feed distractions."
+              description="Stop doom scrolling and procrastinating. Reclaim your focus for what truly matters."
               actionLabel="Start a chat"
               onAction={handleNewMessage}
             />

@@ -380,22 +380,33 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
               }
 
               function detectUser() {
-                var links = document.querySelectorAll('a[href]');
                 var username = null;
                 var avatarUrl = null;
-                for (var i = 0; i < links.length; i++) {
-                  var h = links[i].getAttribute('href');
-                  if (h && h.startsWith('/') && h.endsWith('/') && h.split('/').filter(Boolean).length === 1) {
-                    var u = h.replace(/\\//g, '');
-                    if (!['explore', 'direct', 'reels', 'stories', 'accounts', 'saved', 'p', 'settings', 'help', 'privacy', 'terms'].includes(u.toLowerCase())) {
-                      var img = links[i].querySelector('img');
-                      if (img && img.src && !img.src.includes('data:image/svg')) {
-                        username = u;
-                        avatarUrl = img.src;
-                        break;
-                      }
-                      if (links[i].querySelector('svg[aria-label="Profile"]')) {
-                        username = u;
+                try {
+                  if (window._sharedData && window._sharedData.config && window._sharedData.config.viewer && window._sharedData.config.viewer.username) {
+                    username = window._sharedData.config.viewer.username;
+                  }
+                  if (!username && window.__initialData && window.__initialData.data && window.__initialData.data.viewer && window.__initialData.data.viewer.username) {
+                    username = window.__initialData.data.viewer.username;
+                  }
+                } catch(e) {}
+
+                if (!username) {
+                  var links = document.querySelectorAll('a[href]');
+                  for (var i = 0; i < links.length; i++) {
+                    var h = links[i].getAttribute('href');
+                    if (h && h.startsWith('/') && h.endsWith('/') && h.split('/').filter(Boolean).length === 1) {
+                      var u = h.replace(/\\//g, '');
+                      if (!['explore', 'direct', 'reels', 'stories', 'accounts', 'saved', 'p', 'settings', 'help', 'privacy', 'terms', 'your_activity'].includes(u.toLowerCase())) {
+                        var img = links[i].querySelector('img');
+                        if (img && img.src && !img.src.includes('data:image/svg')) {
+                          username = u;
+                          avatarUrl = img.src;
+                          break;
+                        }
+                        if (links[i].querySelector('svg[aria-label="Profile"]')) {
+                          username = u;
+                        }
                       }
                     }
                   }

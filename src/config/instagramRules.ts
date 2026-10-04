@@ -113,6 +113,14 @@ export function evaluateInstagramUrl(
   }
 
   // 3. Saved Collections & Saved Items - ALWAYS UNRESTRICTED
+  // Note: Bare '/saved/' or '/saved/all-posts/' is the public user @saved, NOT your vault!
+  if (path === '/saved/' || path === '/saved/all-posts/' || path.startsWith('/saved/')) {
+    return {
+      isAllowed: false,
+      category: 'blocked_profile',
+      blockMessage: "That's an Instagram user profile, not your saved collections.",
+    };
+  }
   if (path.includes('/saved/')) {
     return { isAllowed: true, category: 'saved' };
   }

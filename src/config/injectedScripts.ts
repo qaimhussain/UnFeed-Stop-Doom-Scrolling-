@@ -139,17 +139,25 @@ export const SINGLE_REEL_LOCK_JS = `
     var locked = false;
     var lockedReelPath = null;
 
-    function isReelPath() {
+    function isReelActive() {
       var p = window.location.pathname || '';
-      return p.indexOf('/reel/') !== -1 || (p.indexOf('/reels/') !== -1 && p !== '/reels/');
+      if (p.indexOf('/reel/') !== -1 || (p.indexOf('/reels/') !== -1 && p !== '/reels/')) {
+        return true;
+      }
+      // Detect active video / reel viewer in DM or dialog
+      var videos = document.querySelectorAll('video');
+      for (var i = 0; i < videos.length; i++) {
+        var r = videos[i].getBoundingClientRect();
+        if (r.height > 250 && r.width > 160) {
+          return true;
+        }
+      }
+      return false;
     }
 
     var LOCK_CSS = [
-      'html.unfeed-reel-locked, html.unfeed-reel-locked body { overflow: hidden !important; overscroll-behavior: none !important; overscroll-behavior-y: none !important; height: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; background-color: #000000 !important; touch-action: pan-x pinch-zoom !important; }',
+      'html.unfeed-reel-locked, html.unfeed-reel-locked body { overflow: hidden !important; overscroll-behavior: none !important; overscroll-behavior-y: none !important; height: 100% !important; touch-action: pan-x pinch-zoom !important; }',
       'html.unfeed-reel-locked * { scroll-snap-type: none !important; scroll-behavior: auto !important; }',
-      'html.unfeed-reel-locked main, html.unfeed-reel-locked section, html.unfeed-reel-locked div[role="main"], html.unfeed-reel-locked div[role="feed"] { width: 100% !important; max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; left: 0 !important; right: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; touch-action: pan-x pinch-zoom !important; overflow-y: hidden !important; }',
-      'html.unfeed-reel-locked article, html.unfeed-reel-locked [role="article"] { margin: 0 auto !important; width: 100% !important; max-width: 100vw !important; touch-action: pan-x pinch-zoom !important; }',
-      'html.unfeed-reel-locked video { object-fit: contain !important; width: 100% !important; max-width: 100vw !important; margin: 0 auto !important; }',
       'html.unfeed-reel-locked article ~ article, html.unfeed-reel-locked [role="article"] ~ [role="article"], html.unfeed-reel-locked div[role="feed"] > div:nth-child(n+2), html.unfeed-reel-locked main section:nth-of-type(n+2), html.unfeed-reel-locked div[aria-label="More reels"], html.unfeed-reel-locked div[aria-label="Suggested reels"], html.unfeed-reel-locked div[aria-label="Reels"] > div:nth-child(n+2), html.unfeed-reel-locked footer, html.unfeed-reel-locked nav[role="navigation"], html.unfeed-reel-locked div:has(> a[href*="/explore/"]) { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; opacity: 0 !important; }'
     ].join('\\n');
 
@@ -164,6 +172,7 @@ export const SINGLE_REEL_LOCK_JS = `
     }
 
     function freezeScrollers() {
+      if (!isReelActive()) return;
       var els = document.querySelectorAll('div, section, main, [role="feed"]');
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
@@ -173,7 +182,9 @@ export const SINGLE_REEL_LOCK_JS = `
           el.style.setProperty('scroll-snap-type', 'none', 'important');
         }
       }
-      if (window.scrollY !== 0) window.scrollTo(0, 0);
+      if (window.scrollY !== 0 && (window.location.pathname.indexOf('/reel/') !== -1 || window.location.pathname.indexOf('/reels/') !== -1)) {
+        window.scrollTo(0, 0);
+      }
     }
 
     function configureAudio() {
@@ -196,7 +207,7 @@ export const SINGLE_REEL_LOCK_JS = `
 
     function check() {
       try {
-        var shouldLock = isReelPath();
+        var shouldLock = isReelActive();
         var root = document.documentElement;
         if (!root) return;
         if (shouldLock) {
@@ -240,50 +251,100 @@ export const SINGLE_REEL_LOCK_JS = `
       };
     });
 
-    // Intercept vertical scroll/swipe gestures while allowing normal taps (audio toggle, play/pause)
-    var touchStartY = 0;
+    // Intercept vertical scroll/swipe gestures while allowing normal taps (audio toggle, play/pause, like)
     var touchStartX = 0;
+    var touchStartY = 0;
+    var isVerticalDrag = false;
+    var pointerStartX = 0;
+    var pointerStartY = 0;
+    var isPointerVerticalDrag = false;
+
+    // Touch event interception in capture phase (runs before Instagram's listeners)
     window.addEventListener('touchstart', function(e) {
       if (e.touches && e.touches.length) {
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
+        isVerticalDrag = false;
       }
-      if (locked) configureAudio();
+      if (isReelActive()) configureAudio();
     }, { passive: true, capture: true });
 
     window.addEventListener('touchmove', function(e) {
-      if (locked && e.touches && e.touches.length) {
-        var dx = Math.abs(e.touches[0].clientX - touchStartX);
-        var dy = Math.abs(e.touches[0].clientY - touchStartY);
-        // If vertical swipe/scroll is detected, prevent scrolling to subsequent reels!
-        if (dy > dx && dy > 3 && e.cancelable) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
+      if (!isReelActive() || !e.touches || !e.touches.length) return;
+      var dx = Math.abs(e.touches[0].clientX - touchStartX);
+      var dy = Math.abs(e.touches[0].clientY - touchStartY);
+      if (dy > dx && dy > 4) {
+        isVerticalDrag = true;
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       }
     }, { passive: false, capture: true });
 
-    window.addEventListener('wheel', function(e) {
-      if (locked && e.cancelable) {
-        e.preventDefault();
+    window.addEventListener('touchend', function(e) {
+      if (isVerticalDrag && isReelActive()) {
+        isVerticalDrag = false;
+        if (e.cancelable) e.preventDefault();
         e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('touchcancel', function() {
+      isVerticalDrag = false;
+    }, { passive: true, capture: true });
+
+    // Pointer events interception in capture phase (modern Chromium / React)
+    window.addEventListener('pointerdown', function(e) {
+      pointerStartX = e.clientX;
+      pointerStartY = e.clientY;
+      isPointerVerticalDrag = false;
+    }, { passive: true, capture: true });
+
+    window.addEventListener('pointermove', function(e) {
+      if (!isReelActive()) return;
+      var dx = Math.abs(e.clientX - pointerStartX);
+      var dy = Math.abs(e.clientY - pointerStartY);
+      if (dy > dx && dy > 4) {
+        isPointerVerticalDrag = true;
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      }
+    }, { passive: false, capture: true });
+
+    window.addEventListener('pointerup', function(e) {
+      if (isPointerVerticalDrag && isReelActive()) {
+        isPointerVerticalDrag = false;
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+      }
+    }, { passive: false, capture: true });
+
+    // Wheel events
+    window.addEventListener('wheel', function(e) {
+      if (isReelActive()) {
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
       }
     }, { passive: false, capture: true });
 
     window.addEventListener('scroll', function() {
-      if (locked && window.scrollY !== 0) {
+      if (isReelActive() && window.scrollY !== 0 && (window.location.pathname.indexOf('/reel/') !== -1 || window.location.pathname.indexOf('/reels/') !== -1)) {
         window.scrollTo(0, 0);
       }
     }, { passive: true, capture: true });
 
     window.addEventListener('keydown', function(e) {
-      if (locked && [32, 33, 34, 38, 40].indexOf(e.keyCode) !== -1) {
+      if (isReelActive() && [32, 33, 34, 38, 40].indexOf(e.keyCode) !== -1) {
         e.preventDefault();
       }
     }, { capture: true });
 
     document.addEventListener('click', function() {
-      if (locked) configureAudio();
+      if (isReelActive()) configureAudio();
     }, { capture: true, passive: true });
 
     check();

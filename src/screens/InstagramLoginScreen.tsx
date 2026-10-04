@@ -32,13 +32,33 @@ interface InstagramLoginScreenProps {
 const LOGIN_MONITOR_JS = `
   (function() {
     var observer = null;
+    function getUsername() {
+      try {
+        if (window._sharedData && window._sharedData.config && window._sharedData.config.viewer && window._sharedData.config.viewer.username) {
+          return window._sharedData.config.viewer.username;
+        }
+        var profileImg = document.querySelector('nav a[href^="/"] img, a[href^="/"][role="link"] img');
+        if (profileImg) {
+          var a = profileImg.closest('a');
+          if (a && a.getAttribute('href')) {
+            var parts = a.getAttribute('href').split('/').filter(Boolean);
+            if (parts.length === 1 && !['explore', 'direct', 'reels', 'stories', 'accounts', 'saved'].includes(parts[0].toLowerCase())) {
+              return parts[0];
+            }
+          }
+        }
+      } catch(e) {}
+      return null;
+    }
+
     function notifySuccess(url) {
       if (observer) {
         try { observer.disconnect(); } catch(e) {}
         observer = null;
       }
       if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOGIN_SUCCESS', url: url || window.location.href }));
+        var uname = getUsername();
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'LOGIN_SUCCESS', url: url || window.location.href, username: uname }));
       }
     }
 
@@ -154,12 +174,12 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
     setIsLoginModalVisible(false);
   };
 
-  const handleCompleteLogin = async () => {
+  const handleCompleteLogin = async (username?: string | null) => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
     await setDemoMode(false);
-    await setInstagramLoggedIn(true);
+    await setInstagramLoggedIn(true, username);
     setIsLoginModalVisible(false);
     if (onSuccess) onSuccess();
   };
@@ -245,7 +265,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       {/* ── Main content ── */}
       <View style={styles.mainContent}>
 
-        {/* Hero: Modern typography-first branding */}
+        {/* Hero: Modern typography-first branding focused on stopping doomscrolling */}
         <View style={styles.heroSection}>
           <GlassSurface
             useRealBlur={true}
@@ -259,22 +279,22 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
               },
             ]}
           >
-            <Ionicons name="sparkles" size={13} color="#FA7E1E" style={{ marginRight: 6 }} />
+            <Ionicons name="flash" size={13} color="#FA7E1E" style={{ marginRight: 6 }} />
             <Text style={[styles.pillHeroText, { color: colors.textSecondary }]}>
-              INTENTIONAL SOCIAL CLIENT
+              STOP DOOMSCROLLING • RECLAIM YOUR TIME
             </Text>
           </GlassSurface>
 
           <UnfeedWordmark fontSize={54} useGradient={true} align="center" style={{ marginTop: 18 }} />
           <Text style={[styles.tagline, { color: colors.textPrimary }]}>
-            All the connection. None of the scrolling.
+            Stop Procrastinating. Reclaim Your Life.
           </Text>
           <Text style={[styles.subTagline, { color: colors.textSecondary }]}>
-            DMs, close friends&apos; stories, and your visual saved vault — pure connection without the endless feed.
+            Break the infinite scrolling trap. Invest your precious hours into what truly matters instead of wasting them on algorithmic feeds.
           </Text>
         </View>
 
-        {/* Glass feature card */}
+        {/* Glass feature card focused on time freedom */}
         <GlassSurface
           useRealBlur={true}
           blurIntensity={isDark ? 55 : 35}
@@ -284,25 +304,25 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           style={styles.featureCard}
         >
           <FeatureRow
-            icon="chatbubbles"
-            title="Direct Messages"
-            desc="Stay in touch with friends and close circles seamlessly."
+            icon="hourglass-outline"
+            title="Save Hours Every Day"
+            desc="Eliminate unconscious scroll binges so you can focus on real-world work, learning, and passions."
             isDark={isDark}
             colors={colors}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <FeatureRow
-            icon="bookmark"
-            title="Saved Collections"
-            desc="Access your bookmarked recipes, design ideas, and inspiration."
+            icon="ban-outline"
+            title="Kill the Dopamine Loop"
+            desc="No home feed, no explore traps, and no infinite reels designed to steal your attention."
             isDark={isDark}
             colors={colors}
           />
           <View style={[styles.divider, { backgroundColor: colors.divider }]} />
           <FeatureRow
-            icon="shield-checkmark"
-            title="Zero Feeds or Reels"
-            desc="Algorithmic home feed, reels, and explore are completely hidden."
+            icon="checkbox-outline"
+            title="Intentional Utility Only"
+            desc="Answer direct messages, check friends' stories, grab your saved notes — then get back to your day."
             isDark={isDark}
             colors={colors}
           />
@@ -322,7 +342,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
               style={styles.loginButton}
             >
               <Ionicons name="logo-instagram" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
-              <Text style={styles.loginButtonText}>Continue with Instagram</Text>
+              <Text style={styles.loginButtonText}>Break the Scroll — Continue with Instagram</Text>
             </LinearGradient>
           </TouchableOpacity>
 
@@ -389,7 +409,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
             <TouchableOpacity
               activeOpacity={0.8}
               style={[styles.doneButton, { backgroundColor: colors.accent }]}
-              onPress={handleCompleteLogin}
+              onPress={() => handleCompleteLogin()}
             >
               <Text style={styles.doneButtonText}>Done</Text>
               <Ionicons name="checkmark" size={15} color="#FFFFFF" style={{ marginLeft: 3 }} />
@@ -411,7 +431,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
                 try {
                   const data = JSON.parse(event.nativeEvent.data);
                   if (data.type === 'LOGIN_SUCCESS') {
-                    handleCompleteLogin();
+                    handleCompleteLogin(data.username);
                   }
                 } catch {}
               }}

@@ -9,14 +9,18 @@ import {
   Dimensions,
   Platform,
   BackHandler,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
 import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
+import { GlassSurface } from '../components/common/GlassSurface';
 import { SavedGridThumbnail } from '../components/saved/SavedGridThumbnail';
 import { CollectionFolderItem } from '../components/saved/CollectionFolderItem';
 import { SavedDetailModal } from '../components/saved/SavedDetailModal';
@@ -48,6 +52,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [currentUrl, setCurrentUrl] = useState<string>('');
   const [showOfflineVault, setShowOfflineVault] = useState(false);
+  const [handleInput, setHandleInput] = useState('');
   const webViewRef = useRef<any>(null);
 
   // Clearance so content stops right above floating tab bar
@@ -55,8 +60,8 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
 
   // Compute real Instagram user saved posts URL
   const realSavedUrl = instagramUsername
-    ? `https://www.instagram.com/${instagramUsername}/saved/`
-    : `https://www.instagram.com/saved/all-posts/`;
+    ? `https://www.instagram.com/${encodeURIComponent(instagramUsername)}/saved/`
+    : '';
 
   const isViewingSingleSavedPost =
     currentUrl.includes('/p/') ||
@@ -88,8 +93,99 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
     navigation.navigate('CollectionDetail', { collectionId: collection.id });
   };
 
+  // If logged in but username is not yet known, prompt user cleanly rather than loading public @saved
+  if (!isDemoMode && isInstagramLoggedIn && !showOfflineVault && !instagramUsername) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.headerIconButton}
+            onPress={() => navigation.navigate('Settings')}
+            accessibilityLabel="Settings"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.promptContainer, { paddingBottom: bottomTabBarClearance }]}>
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={isDark ? 45 : 25}
+            borderRadius={24}
+            elevation={isDark ? 8 : 4}
+            style={styles.promptCard}
+          >
+            <View style={[styles.promptIconCircle, { backgroundColor: isDark ? 'rgba(0,149,246,0.15)' : 'rgba(0,149,246,0.1)' }]}>
+              <Ionicons name="bookmark" size={28} color="#0095F6" />
+            </View>
+
+            <Text style={[typography.h3, styles.promptTitle, { color: colors.textPrimary }]}>
+              Your Saved Vault
+            </Text>
+
+            <Text style={[typography.body, styles.promptSubtitle, { color: colors.textSecondary }]}>
+              Instagram stores saved posts under your handle. Enter your Instagram username once to open your private vault.
+            </Text>
+
+            <View style={[styles.inputRow, { borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)', backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)' }]}>
+              <Text style={[styles.atSymbol, { color: colors.textTertiary }]}>@</Text>
+              <TextInput
+                value={handleInput}
+                onChangeText={setHandleInput}
+                placeholder="your_handle"
+                placeholderTextColor={colors.textTertiary}
+                autoCapitalize="none"
+                autoCorrect={false}
+                style={[styles.handleTextInput, { color: colors.textPrimary }]}
+              />
+            </View>
+
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={[styles.openVaultButton, { opacity: handleInput.trim().length > 0 ? 1 : 0.6 }]}
+              disabled={handleInput.trim().length === 0}
+              onPress={() => {
+                const clean = handleInput.trim().replace(/^@+/, '').toLowerCase();
+                if (clean.length > 0) {
+                  if (Platform.OS !== 'web') {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+                  }
+                  useAppStore.getState().setInstagramLoggedIn(true, clean);
+                }
+              }}
+            >
+              <LinearGradient
+                colors={['#0095F6', '#6A53AE']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.openVaultGradient}
+              >
+                <Text style={styles.openVaultButtonText}>Open My Saved Posts</Text>
+                <Ionicons name="arrow-forward" size={16} color="#FFFFFF" style={{ marginLeft: 6 }} />
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.offlineFallbackButton}
+              onPress={() => setShowOfflineVault(true)}
+            >
+              <Ionicons name="cloud-offline-outline" size={15} color={colors.accent} style={{ marginRight: 6 }} />
+              <Text style={[typography.captionBold, { color: colors.accent }]}>
+                Browse Local Offline Vault
+              </Text>
+            </TouchableOpacity>
+          </GlassSurface>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   // Real Instagram Saved Posts Mode (Logged in with real account and not explicitly viewing offline vault)
-  if (!isDemoMode && isInstagramLoggedIn && !showOfflineVault) {
+  if (!isDemoMode && isInstagramLoggedIn && !showOfflineVault && realSavedUrl) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
@@ -138,6 +234,45 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
               </Text>
             </TouchableOpacity>
 
+            {instagramUsername && (
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={[
+                  styles.pillBadge,
+                  {
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.divider,
+                    borderWidth: 0.5,
+                    paddingHorizontal: 8,
+                    paddingVertical: 5,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginRight: 6,
+                  },
+                ]}
+                onPress={() => {
+                  Alert.alert(
+                    'Saved Account',
+                    `Currently showing saved posts for @${instagramUsername}.\n\nDo you want to switch account handle?`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Change Handle',
+                        onPress: () => {
+                          useAppStore.getState().setInstagramLoggedIn(true, null);
+                        },
+                      },
+                    ]
+                  );
+                }}
+                accessibilityLabel="Saved handle"
+              >
+                <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
+                  @{instagramUsername}
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <View style={[styles.pillBadge, { backgroundColor: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)' }]}>
               <Text style={[typography.captionBold, { color: colors.textSecondary, fontSize: 11 }]}>
                 {currentUrl.includes('/reel/') || currentUrl.includes('/reels/') ? 'Reel' : isViewingSingleSavedPost ? 'Post' : 'Saved'}
@@ -159,6 +294,7 @@ export const SavedScreen: React.FC<SavedScreenProps> = ({ navigation }) => {
         <View style={[styles.realWebViewContainer, { paddingBottom: bottomTabBarClearance }]}>
           <InstagramWebView
             ref={webViewRef}
+            key={realSavedUrl}
             initialUrl={realSavedUrl}
             fallbackUrl={realSavedUrl}
             isFromSaved={true}
@@ -399,5 +535,80 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  promptContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  promptCard: {
+    width: '100%',
+    maxWidth: 360,
+    alignItems: 'center',
+    padding: 24,
+  },
+  promptIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  promptTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  promptSubtitle: {
+    fontSize: 13,
+    lineHeight: 19,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+  atSymbol: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginRight: 4,
+  },
+  handleTextInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+  },
+  openVaultButton: {
+    width: '100%',
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginBottom: 14,
+  },
+  openVaultGradient: {
+    height: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  openVaultButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  offlineFallbackButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
   },
 });
