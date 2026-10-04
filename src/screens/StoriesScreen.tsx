@@ -55,11 +55,19 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
   // Clearance so content stops right above floating tab bar
   const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
 
+  // Calculate actual daily remaining time in minutes
+  const remainingDailyMinutes = effectiveDailyLimit !== null
+    ? Math.max(0, effectiveDailyLimit - screenTime.minutesToday)
+    : null;
+  const isLimitWarning = remainingDailyMinutes !== null && remainingDailyMinutes <= 3 && remainingDailyMinutes > 0;
+
+  // Max story viewing limit in seconds (matches user's daily limit, default 20m if off)
+  const maxStorySeconds = (effectiveDailyLimit ?? 20) * 60;
   const secondsUsed = storyTimeUsage?.secondsUsed ?? 0;
-  const isStoryLimitReached = secondsUsed >= 1200;
-  const remainingSeconds = Math.max(0, 1200 - secondsUsed);
+  const isStoryLimitReached = isFeedDailyLocked || secondsUsed >= maxStorySeconds;
+  const remainingSeconds = Math.max(0, maxStorySeconds - secondsUsed);
   const isViewingStory = currentUrl.includes('/stories/');
-  const isWarning = remainingSeconds <= 120 && remainingSeconds > 0; // 2 minutes or less
+  const isWarning = isLimitWarning;
 
   // Story viewing timer countdown: only ticks while URL contains /stories/ and limit not reached
   useEffect(() => {
@@ -184,8 +192,10 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
               style={[
                 styles.pillBadge,
                 {
-                  backgroundColor: isWarning
+                  backgroundColor: isLimitWarning
                     ? 'rgba(255, 160, 0, 0.16)'
+                    : isFeedDailyLocked
+                    ? 'rgba(237, 73, 86, 0.16)'
                     : isDark
                     ? 'rgba(255,255,255,0.08)'
                     : 'rgba(0,0,0,0.05)',
@@ -196,12 +206,16 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
                 style={[
                   typography.captionBold,
                   {
-                    color: isWarning ? '#FFA000' : colors.textSecondary,
+                    color: isLimitWarning ? '#FFA000' : isFeedDailyLocked ? colors.destructive : colors.textSecondary,
                     fontSize: 11,
                   },
                 ]}
               >
-                {isStoryLimitReached ? '0m left' : `${Math.ceil(remainingSeconds / 60)}m left`}
+                {remainingDailyMinutes !== null
+                  ? isFeedDailyLocked
+                    ? '0m left'
+                    : `${remainingDailyMinutes}m left`
+                  : 'No limit'}
               </Text>
             </GlassSurface>
             <TouchableOpacity
@@ -254,7 +268,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
                     { color: isWarning ? '#FFA000' : '#FFFFFF' },
                   ]}
                 >
-                  Story time left: {formattedTimeLeft}
+                  Focus time left: {remainingDailyMinutes !== null ? `${remainingDailyMinutes}m` : 'No limit'}
                 </Text>
               </GlassSurface>
             </View>

@@ -137,6 +137,7 @@ export const SINGLE_REEL_LOCK_JS = `
     window.__unfeedReelLock = true;
 
     var locked = false;
+    var lockedReelPath = null;
 
     function isReelPath() {
       var p = window.location.pathname || '';
@@ -144,12 +145,12 @@ export const SINGLE_REEL_LOCK_JS = `
     }
 
     var LOCK_CSS = [
-      'html.unfeed-reel-locked, html.unfeed-reel-locked body { overflow: hidden !important; overscroll-behavior: none !important; height: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; background-color: #000000 !important; }',
+      'html.unfeed-reel-locked, html.unfeed-reel-locked body { overflow: hidden !important; overscroll-behavior: none !important; overscroll-behavior-y: none !important; height: 100% !important; width: 100% !important; margin: 0 !important; padding: 0 !important; background-color: #000000 !important; touch-action: pan-x pinch-zoom !important; }',
       'html.unfeed-reel-locked * { scroll-snap-type: none !important; scroll-behavior: auto !important; }',
-      'html.unfeed-reel-locked main, html.unfeed-reel-locked section, html.unfeed-reel-locked div[role="main"] { width: 100% !important; max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; left: 0 !important; right: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; }',
-      'html.unfeed-reel-locked article:first-of-type, html.unfeed-reel-locked [role="article"]:first-of-type { margin: 0 auto !important; width: 100% !important; max-width: 100vw !important; }',
+      'html.unfeed-reel-locked main, html.unfeed-reel-locked section, html.unfeed-reel-locked div[role="main"], html.unfeed-reel-locked div[role="feed"] { width: 100% !important; max-width: 100vw !important; margin: 0 auto !important; padding: 0 !important; left: 0 !important; right: 0 !important; display: flex !important; justify-content: center !important; align-items: center !important; touch-action: pan-x pinch-zoom !important; overflow-y: hidden !important; }',
+      'html.unfeed-reel-locked article, html.unfeed-reel-locked [role="article"] { margin: 0 auto !important; width: 100% !important; max-width: 100vw !important; touch-action: pan-x pinch-zoom !important; }',
       'html.unfeed-reel-locked video { object-fit: contain !important; width: 100% !important; max-width: 100vw !important; margin: 0 auto !important; }',
-      'html.unfeed-reel-locked article:nth-of-type(n+2), html.unfeed-reel-locked [role="article"]:nth-of-type(n+2), html.unfeed-reel-locked div[role="feed"] > div:nth-of-type(n+2), html.unfeed-reel-locked main section:nth-of-type(n+2), html.unfeed-reel-locked div[aria-label="More reels"], html.unfeed-reel-locked div[aria-label="Suggested reels"], html.unfeed-reel-locked footer, html.unfeed-reel-locked nav[role="navigation"], html.unfeed-reel-locked div:has(> a[href*="/explore/"]) { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; opacity: 0 !important; }'
+      'html.unfeed-reel-locked article ~ article, html.unfeed-reel-locked [role="article"] ~ [role="article"], html.unfeed-reel-locked div[role="feed"] > div:nth-child(n+2), html.unfeed-reel-locked main section:nth-of-type(n+2), html.unfeed-reel-locked div[aria-label="More reels"], html.unfeed-reel-locked div[aria-label="Suggested reels"], html.unfeed-reel-locked div[aria-label="Reels"] > div:nth-child(n+2), html.unfeed-reel-locked footer, html.unfeed-reel-locked nav[role="navigation"], html.unfeed-reel-locked div:has(> a[href*="/explore/"]) { display: none !important; visibility: hidden !important; pointer-events: none !important; height: 0 !important; opacity: 0 !important; }'
     ].join('\\n');
 
     function ensureStyle() {
@@ -166,8 +167,9 @@ export const SINGLE_REEL_LOCK_JS = `
       var els = document.querySelectorAll('div, section, main, [role="feed"]');
       for (var i = 0; i < els.length; i++) {
         var el = els[i];
-        if (el.scrollHeight > el.clientHeight + 2) {
+        if (el.scrollHeight > el.clientHeight + 2 || el.style.overflowY === 'scroll' || el.style.overflowY === 'auto') {
           el.style.setProperty('overflow-y', 'hidden', 'important');
+          el.style.setProperty('touch-action', 'pan-x pinch-zoom', 'important');
           el.style.setProperty('scroll-snap-type', 'none', 'important');
         }
       }
@@ -198,6 +200,9 @@ export const SINGLE_REEL_LOCK_JS = `
         var root = document.documentElement;
         if (!root) return;
         if (shouldLock) {
+          if (!lockedReelPath) {
+            lockedReelPath = window.location.pathname;
+          }
           ensureStyle();
           if (!root.classList.contains('unfeed-reel-locked')) root.classList.add('unfeed-reel-locked');
           freezeScrollers();
@@ -210,9 +215,30 @@ export const SINGLE_REEL_LOCK_JS = `
         } else if (locked || root.classList.contains('unfeed-reel-locked')) {
           root.classList.remove('unfeed-reel-locked');
           locked = false;
+          lockedReelPath = null;
         }
       } catch (e) {}
     }
+
+    // Intercept pushState / replaceState so Instagram cannot switch to the next reel
+    ['pushState', 'replaceState'].forEach(function(fn) {
+      var orig = history[fn];
+      history[fn] = function(state, title, url) {
+        if (locked && lockedReelPath && url) {
+          try {
+            var resolved = new URL(url, window.location.href);
+            var nextPath = resolved.pathname;
+            if (nextPath && nextPath !== lockedReelPath && (nextPath.indexOf('/reel/') !== -1 || nextPath.indexOf('/reels/') !== -1)) {
+              // Block Instagram SPA from navigating to any subsequent reel!
+              return;
+            }
+          } catch (e) {}
+        }
+        var res = orig.apply(this, arguments);
+        check();
+        return res;
+      };
+    });
 
     // Intercept vertical scroll/swipe gestures while allowing normal taps (audio toggle, play/pause)
     var touchStartY = 0;
@@ -230,7 +256,7 @@ export const SINGLE_REEL_LOCK_JS = `
         var dx = Math.abs(e.touches[0].clientX - touchStartX);
         var dy = Math.abs(e.touches[0].clientY - touchStartY);
         // If vertical swipe/scroll is detected, prevent scrolling to subsequent reels!
-        if (dy > dx && dy > 6 && e.cancelable) {
+        if (dy > dx && dy > 3 && e.cancelable) {
           e.preventDefault();
           e.stopPropagation();
         }
@@ -243,6 +269,12 @@ export const SINGLE_REEL_LOCK_JS = `
         e.stopPropagation();
       }
     }, { passive: false, capture: true });
+
+    window.addEventListener('scroll', function() {
+      if (locked && window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    }, { passive: true, capture: true });
 
     window.addEventListener('keydown', function(e) {
       if (locked && [32, 33, 34, 38, 40].indexOf(e.keyCode) !== -1) {

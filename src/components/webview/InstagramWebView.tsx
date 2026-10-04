@@ -270,6 +270,26 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
       return;
     }
 
+    // Enforce Single Reel Lock during SPA transitions (blocks swipe to next reel)
+    if ((isFromDM || isFromSaved) && (navState.url.includes('/reel/') || navState.url.includes('/reels/'))) {
+      const match = navState.url.match(/\/reel(?:s)?\/([A-Za-z0-9_-]+)/);
+      const reelCode = match ? match[1] : null;
+      if (reelCode) {
+        if (!initialReelIdRef.current) {
+          initialReelIdRef.current = reelCode;
+        } else if (initialReelIdRef.current !== reelCode) {
+          blockedBySpaRef.current = true;
+          setBlockedState({
+            isBlocked: true,
+            category: 'blocked_reels',
+            message: "Reels feed is locked. Only the shared reel from your chat can be viewed.",
+          });
+          webViewRef.current?.injectJavaScript(`window.location.replace("https://www.instagram.com/reel/${initialReelIdRef.current}/"); true;`);
+          return;
+        }
+      }
+    }
+
     // Also check on nav state changes in case of SPA pushState transitions
     const evaluation = evaluateInstagramUrl(navState.url, {
       isStoryTimeAvailable,

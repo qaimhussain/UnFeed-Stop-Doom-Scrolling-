@@ -62,6 +62,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
       }
       Alert.alert('🔒 Anti-Cheat Active', res.message || 'You cannot extend your limit today.');
+    } else {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }
+      Alert.alert(
+        '✓ Daily Limit Set',
+        minutes !== null
+          ? `Your daily focus target is now ${minutes} minutes. The remaining time in your top header has been updated.`
+          : 'Daily focus limit has been turned off.'
+      );
     }
   };
 
@@ -439,7 +449,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 </Text>
               </View>
               <Text style={[typography.h3, { color: colors.accent }]}>
-                {Math.floor(storyTimeUsage.secondsUsed / 60)}m {storyTimeUsage.secondsUsed % 60}s / 20m
+                {screenTime.minutesToday}m / {focusSettings.dailyLimitMinutes !== null ? `${focusSettings.dailyLimitMinutes}m` : 'Off'}
               </Text>
             </View>
 
@@ -459,7 +469,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 style={[
                   styles.statusBadge,
                   {
-                    backgroundColor: storyTimeService.isLimitReached(storyTimeUsage.secondsUsed)
+                    backgroundColor: (focusSettings.dailyLimitMinutes !== null && screenTime.minutesToday >= focusSettings.dailyLimitMinutes) || screenTime.isLockedUntilTomorrow
                       ? 'rgba(237, 73, 86, 0.15)'
                       : 'rgba(16, 208, 112, 0.15)',
                   },
@@ -469,15 +479,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                   style={[
                     typography.captionBold,
                     {
-                      color: storyTimeService.isLimitReached(storyTimeUsage.secondsUsed)
+                      color: (focusSettings.dailyLimitMinutes !== null && screenTime.minutesToday >= focusSettings.dailyLimitMinutes) || screenTime.isLockedUntilTomorrow
                         ? colors.destructive
                         : '#10D070',
                     },
                   ]}
                 >
-                  {storyTimeService.isLimitReached(storyTimeUsage.secondsUsed)
-                    ? 'Limit Reached (Stories Locked)'
-                    : `${Math.max(0, Math.floor((STORY_DAILY_LIMIT_SECONDS - storyTimeUsage.secondsUsed) / 60))}m remaining`}
+                  {(focusSettings.dailyLimitMinutes !== null && screenTime.minutesToday >= focusSettings.dailyLimitMinutes) || screenTime.isLockedUntilTomorrow
+                    ? 'Limit Reached (Feed Resting)'
+                    : focusSettings.dailyLimitMinutes !== null
+                    ? `${Math.max(0, focusSettings.dailyLimitMinutes - screenTime.minutesToday)}m remaining today`
+                    : 'Unlimited focus time'}
                 </Text>
               </View>
             </View>
@@ -489,8 +501,10 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
               LIMIT SPECIFICATIONS
             </Text>
             <View style={styles.configItem}>
-              <Text style={[typography.caption, { color: colors.textPrimary }]}>Daily story viewing limit:</Text>
-              <Text style={[typography.captionBold, { color: colors.textSecondary }]}>20 minutes (1200 seconds)</Text>
+              <Text style={[typography.caption, { color: colors.textPrimary }]}>Active focus limit:</Text>
+              <Text style={[typography.captionBold, { color: colors.textSecondary }]}>
+                {focusSettings.dailyLimitMinutes !== null ? `${focusSettings.dailyLimitMinutes} minutes (${focusSettings.dailyLimitMinutes * 60}s)` : 'Off (unlimited)'}
+              </Text>
             </View>
             <View style={styles.configItem}>
               <Text style={[typography.caption, { color: colors.textPrimary }]}>Availability:</Text>

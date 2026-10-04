@@ -245,19 +245,32 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       {/* ── Main content ── */}
       <View style={styles.mainContent}>
 
-        {/* Hero: Custom glowing app logo + wordmark */}
+        {/* Hero: Modern typography-first branding */}
         <View style={styles.heroSection}>
-          <View style={[styles.appLogoCard, { borderColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)' }]}>
-            <Image
-              source={require('../../assets/app-icon-original.jpg')}
-              style={styles.appLogoImg}
-              resizeMode="cover"
-            />
-          </View>
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={35}
+            borderRadius={20}
+            style={[
+              styles.pillHeroBadge,
+              {
+                borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
+                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
+              },
+            ]}
+          >
+            <Ionicons name="sparkles" size={13} color="#FA7E1E" style={{ marginRight: 6 }} />
+            <Text style={[styles.pillHeroText, { color: colors.textSecondary }]}>
+              INTENTIONAL SOCIAL CLIENT
+            </Text>
+          </GlassSurface>
 
-          <UnfeedWordmark fontSize={46} useGradient={true} align="center" style={{ marginTop: 14 }} />
-          <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+          <UnfeedWordmark fontSize={54} useGradient={true} align="center" style={{ marginTop: 18 }} />
+          <Text style={[styles.tagline, { color: colors.textPrimary }]}>
             All the connection. None of the scrolling.
+          </Text>
+          <Text style={[styles.subTagline, { color: colors.textSecondary }]}>
+            DMs, close friends&apos; stories, and your visual saved vault — pure connection without the endless feed.
           </Text>
         </View>
 
@@ -500,23 +513,19 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 10,
   },
-  appLogoCard: {
-    width: 82,
-    height: 82,
-    borderRadius: 22,
-    overflow: 'hidden',
+  pillHeroBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
-    shadowColor: '#D62976',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 8,
   },
-  appLogoImg: {
-    width: '100%',
-    height: '100%',
+  pillHeroText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.2,
   },
   wordmark: {
     fontSize: 36,
@@ -524,9 +533,18 @@ const styles = StyleSheet.create({
     letterSpacing: -1.2,
   },
   tagline: {
-    fontSize: 14,
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    textAlign: 'center',
+    letterSpacing: -0.2,
+  },
+  subTagline: {
+    fontSize: 13,
+    lineHeight: 18,
     marginTop: 6,
     textAlign: 'center',
+    paddingHorizontal: 16,
     letterSpacing: 0.1,
   },
   featureCard: {

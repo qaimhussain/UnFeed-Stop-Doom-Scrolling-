@@ -901,7 +901,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     const currentLimit = get().focusSettings.dailyLimitMinutes;
     const currentMinutes = get().screenTime.minutesToday;
     const isLockedTomorrow = get().screenTime.isLockedUntilTomorrow;
-    const isLimitExhaustedToday = isLockedTomorrow || (currentLimit !== null && currentMinutes >= currentLimit);
+    // Anti-cheat only engages when user has actually exhausted their set limit today
+    const hasExhaustedActualTime = currentLimit !== null && currentMinutes >= currentLimit;
+    const isLimitExhaustedToday = (isLockedTomorrow || hasExhaustedActualTime) && hasExhaustedActualTime;
 
     // ANTI-CHEAT ENFORCEMENT:
     // If times run out like 15 mins already, user can't cheat and switch to 20, 30, 60 or Off to get more time.
