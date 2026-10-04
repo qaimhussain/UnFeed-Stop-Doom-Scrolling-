@@ -28,7 +28,7 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({ isLocked, onUnlock
     if (isAuthenticating) return;
     setIsAuthenticating(true);
     try {
-      const success = await biometricService.authenticate('Unlock Still-Gram');
+      const success = await biometricService.authenticate('Unlock Unfeed');
       if (success) {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -75,7 +75,7 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({ isLocked, onUnlock
             </View>
 
             <Text style={[typography.h2, styles.title, { color: colors.textPrimary }]}>
-              Still-Gram is Locked
+              Unfeed is Locked
             </Text>
             <Text style={[typography.body, styles.subtitle, { color: colors.textSecondary }]}>
               Your chats, saved visual library, and personal reflections are protected.

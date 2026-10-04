@@ -92,7 +92,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
       const success = await biometricService.authenticate('Confirm Biometrics to Enable App Lock');
       if (success) {
         await toggleAppLock(true);
-        Alert.alert('🔒 App Lock Enabled', 'Still-Gram will require biometrics whenever opened.');
+        Alert.alert('🔒 App Lock Enabled', 'Unfeed will require biometrics whenever opened.');
       } else {
         Alert.alert('Authentication Failed', 'Biometrics could not be verified on this device.');
       }
@@ -661,7 +661,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                   App Biometric Lock
                 </Text>
                 <Text style={[typography.caption, { color: colors.textSecondary }]}>
-                  Require fingerprint or face recognition to open Still-Gram
+                  Require fingerprint or face recognition to open Unfeed
                 </Text>
               </View>
               <Switch

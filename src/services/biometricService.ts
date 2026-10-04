@@ -17,7 +17,7 @@ export const biometricService = {
   /**
    * Authenticate using Fingerprint, Face ID, or Device PIN/Pattern
    */
-  async authenticate(promptMessage: string = 'Unlock Still-Gram'): Promise<boolean> {
+  async authenticate(promptMessage: string = 'Unlock Unfeed'): Promise<boolean> {
     try {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage,

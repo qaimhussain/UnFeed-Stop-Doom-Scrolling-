@@ -567,7 +567,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                 { color: colors.textSecondary },
               ]}
             >
-              No internet connection detected. Still-Gram keeps your personal notes, checklists, and saved posts ready locally without disturbances.
+              No internet connection detected. Unfeed keeps your personal notes, checklists, and saved posts ready locally without disturbances.
             </Text>
             <TouchableOpacity
               activeOpacity={0.85}
