@@ -123,6 +123,7 @@ export interface FocusSettings {
   notificationsEnabled: boolean;
   themeMode: ThemeMode;
   reduceEffects?: boolean; // Replaces glass surfaces with solid surfaces
+  appLockEnabled?: boolean; // Biometric or screen lock on launch
 }
 
 export interface ScreenTimeState {

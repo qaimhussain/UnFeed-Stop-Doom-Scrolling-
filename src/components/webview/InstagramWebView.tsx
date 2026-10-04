@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   BackHandler,
   Platform,
+  AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { WebView, WebViewNavigation } from 'react-native-webview';
@@ -58,6 +59,8 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
   const [errorMessage, setErrorMessage] = useState('');
   const [canGoBack, setCanGoBack] = useState(false);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
+  const [isReelAudioMuted, setIsReelAudioMuted] = useState(false);
+  const initialReelIdRef = useRef<string | null>(null);
 
   // Auto-dismiss loading overlay quickly (max 900ms) so web content is interactive immediately
   useEffect(() => {
@@ -69,6 +72,24 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
       return () => clearTimeout(timer);
     }
   }, [isLoading]);
+
+  // Auto-pause media when app is minimized or backgrounded (Battery & Focus)
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        webViewRef.current?.injectJavaScript(`
+          (function() {
+            try {
+              document.querySelectorAll('video, audio').forEach(function(el) {
+                el.pause();
+              });
+            } catch(e) {}
+          })(); true;
+        `);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   const [blockedState, setBlockedState] = useState<{
     isBlocked: boolean;
@@ -183,6 +204,24 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         }
       }
 
+      // Single Reel Lock: lock user to the specific shared reel from DM or Saved
+      // Block infinite scrolling into subsequent reels in the feed
+      if ((isFromDM || isFromSaved) && (url.includes('/reel/') || url.includes('/reels/'))) {
+        const match = url.match(/\/reel(?:s)?\/([A-Za-z0-9_-]+)/);
+        const reelCode = match ? match[1] : null;
+        if (reelCode) {
+          if (!initialReelIdRef.current) {
+            initialReelIdRef.current = reelCode;
+          } else if (initialReelIdRef.current !== reelCode) {
+            // Instagram tried to swipe/scroll into another reel! Block it!
+            return false;
+          }
+        }
+      } else if (url.includes('/direct/') || url.includes('/saved/')) {
+        // Reset locked reel ID when back in chat or saved vault
+        initialReelIdRef.current = null;
+      }
+
       const evaluation: RouteEvaluation = evaluateInstagramUrl(url, {
         isStoryTimeAvailable,
         username: instagramUsername || undefined,
@@ -219,6 +258,11 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
   const handleNavigationStateChange = (navState: WebViewNavigation) => {
     setCanGoBack(navState.canGoBack);
     setCurrentUrl(navState.url);
+
+    // If returning to chat inbox, reset single reel lock
+    if (navState.url.includes('/direct/inbox') || navState.url.includes('/direct/t/')) {
+      initialReelIdRef.current = null;
+    }
 
     // If navigated to home from DM, instantly return to inbox
     if (isFromDM && (navState.url === 'https://www.instagram.com/' || navState.url === 'https://www.instagram.com/?' || navState.url.startsWith('https://www.instagram.com/?'))) {
@@ -363,6 +407,9 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
             if (data.type === 'PAGE_READY') {
               setIsLoading(false);
               setHasLoadedOnce(true);
+            }
+            if (data.type === 'AUDIO_STATE') {
+              setIsReelAudioMuted(!!data.isMuted);
             }
             if ((data.type === 'DETECTED_USERNAME' || data.type === 'DETECTED_USER_PROFILE') && (data.username || data.avatarUrl)) {
               if (data.username && onUsernameDetected) onUsernameDetected(data.username);
@@ -573,6 +620,47 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
           </GlassSurface>
         </TouchableOpacity>
       )}
+
+      {/* Floating glass Audio Control button when viewing a single reel */}
+      {(currentUrl.includes('/reel/') || currentUrl.includes('/reels/')) && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.floatingAudioBtn}
+          onPress={() => {
+            webViewRef.current?.injectJavaScript(`
+              (function() {
+                var v = document.querySelector('video');
+                if (v) {
+                  v.muted = !v.muted;
+                  v.volume = 1.0;
+                  if (!v.muted && v.paused) v.play().catch(function() {});
+                  window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'AUDIO_STATE', isMuted: v.muted }));
+                }
+              })(); true;
+            `);
+          }}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityLabel={isReelAudioMuted ? "Unmute audio" : "Mute audio"}
+        >
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={45}
+            borderRadius={20}
+            elevation={6}
+            style={styles.floatingAudioInner}
+          >
+            <Ionicons
+              name={isReelAudioMuted ? 'volume-mute-outline' : 'volume-high-outline'}
+              size={18}
+              color="#FFFFFF"
+              style={{ marginRight: 6 }}
+            />
+            <Text style={[typography.captionBold, { color: '#FFFFFF', fontSize: 12 }]}>
+              {isReelAudioMuted ? 'Unmute' : 'Audio On'}
+            </Text>
+          </GlassSurface>
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -587,6 +675,19 @@ const styles = StyleSheet.create({
     zIndex: 100,
   },
   floatingBackToChatInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+  },
+  floatingAudioBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    zIndex: 100,
+  },
+  floatingAudioInner: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 14,

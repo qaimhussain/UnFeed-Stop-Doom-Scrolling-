@@ -23,6 +23,7 @@ import {
   Dimensions,
   Platform,
   AccessibilityInfo,
+  Keyboard,
 } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -120,6 +121,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
 
   // Reanimated shared values
   const activeIndex = useSharedValue(state.index);
+  const keyboardTranslateY = useSharedValue(0);
 
   useEffect(() => {
     if (reduceMotion) {
@@ -129,6 +131,24 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
     }
   }, [state.index, reduceMotion]);
 
+  // Auto-hide floating tab bar when keyboard is active (typing in DMs or Notes)
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      keyboardTranslateY.value = withSpring(130, SPRING_CONFIG);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      keyboardTranslateY.value = withSpring(0, SPRING_CONFIG);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
   // Sliding pill animated style
   const indicatorStyle = useAnimatedStyle(() => {
     return {
@@ -136,13 +156,20 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
     };
   });
 
+  const keyboardAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: keyboardTranslateY.value }],
+    };
+  });
+
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16);
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.floatingWrapper,
         { paddingBottom: bottomPadding },
+        keyboardAnimatedStyle,
       ]}
       pointerEvents="box-none"
     >
@@ -222,7 +249,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
           })}
         </View>
       </GlassSurface>
-    </View>
+    </Animated.View>
   );
 };
 

@@ -128,7 +128,7 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
               Feed is Resting
             </Text>
             <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', lineHeight: 21, marginBottom: 16 }]}>
-              You hit today's daily focus limit. Feed and stories are asleep until tomorrow morning so you can stay in flow.
+              You hit today&apos;s daily focus limit. Feed and stories are asleep until tomorrow morning so you can stay in flow.
             </Text>
 
             <View style={[styles.restingBadge, { backgroundColor: 'rgba(16, 208, 112, 0.1)', borderColor: 'rgba(16, 208, 112, 0.25)' }]}>

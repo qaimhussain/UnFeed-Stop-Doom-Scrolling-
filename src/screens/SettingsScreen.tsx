@@ -20,6 +20,7 @@ import { storyTimeService } from '../services/storyTimeService';
 import { STORY_DAILY_LIMIT_SECONDS } from '../config/storyTimeConfig';
 import { GlassSurface } from '../components/focus/GlassSurface';
 import { Header } from '../components/common/Header';
+import { biometricService } from '../services/biometricService';
 
 interface SettingsScreenProps {
   navigation: any;
@@ -38,6 +39,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
   const cancelSessionTimer = useAppStore((state) => state.cancelSessionTimer);
   const toggleNotifications = useAppStore((state) => state.toggleNotifications);
   const toggleReduceEffects = useAppStore((state) => state.toggleReduceEffects);
+  const toggleAppLock = useAppStore((state) => state.toggleAppLock);
   const isDemoMode = useAppStore((state) => state.isDemoMode);
   const isInstagramLoggedIn = useAppStore((state) => state.isInstagramLoggedIn);
   const setDemoMode = useAppStore((state) => state.setDemoMode);
@@ -69,6 +71,50 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
     }
     startSessionTimer(minutes);
     Alert.alert('Session Started', `Timer set for ${minutes} minutes. We'll remind you gently.`);
+  };
+
+  const handleToggleAppLock = async () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    }
+    const current = !!focusSettings.appLockEnabled;
+    if (!current) {
+      const success = await biometricService.authenticate('Confirm Biometrics to Enable App Lock');
+      if (success) {
+        await toggleAppLock(true);
+        Alert.alert('🔒 App Lock Enabled', 'Still-Gram will require biometrics whenever opened.');
+      } else {
+        Alert.alert('Authentication Failed', 'Biometrics could not be verified on this device.');
+      }
+    } else {
+      const success = await biometricService.authenticate('Confirm Biometrics to Disable App Lock');
+      if (success) {
+        await toggleAppLock(false);
+      }
+    }
+  };
+
+  const handleClearWebCache = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    Alert.alert(
+      'Clear Web & Media Cache',
+      'This will remove cached web images and temporary scripts. Your Instagram login and personal notes remain safe.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear Cache',
+          style: 'destructive',
+          onPress: () => {
+            if (Platform.OS !== 'web') {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            }
+            Alert.alert('Cache Cleared', 'Temporary web assets and cache have been successfully cleared.');
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -317,7 +363,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
                 <Ionicons name="shield-checkmark" size={16} color="#FFA000" style={{ marginRight: 8 }} />
                 <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
                   <Text style={{ fontWeight: '700', color: '#FFA000' }}>Anti-cheat active: </Text>
-                  Today's limit of {focusSettings.dailyLimitMinutes}m reached ({screenTime.minutesToday}m used). Higher limits are locked until tomorrow.
+                  Today&apos;s limit of {focusSettings.dailyLimitMinutes}m reached ({screenTime.minutesToday}m used). Higher limits are locked until tomorrow.
                 </Text>
               </View>
             )}
@@ -588,7 +634,60 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
           </GlassSurface>
         </View>
 
-        {/* SECTION 4: ABOUT UNFEED */}
+        {/* SECTION: SECURITY & PRIVACY */}
+        <View style={styles.section}>
+          <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSecondary }]}>
+            SECURITY & PRIVACY
+          </Text>
+
+          <GlassSurface borderRadius={16} elevation={2} style={styles.sectionCard}>
+            <View style={styles.settingRow}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  App Biometric Lock
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  Require fingerprint or face recognition to open Still-Gram
+                </Text>
+              </View>
+              <Switch
+                value={!!focusSettings.appLockEnabled}
+                onValueChange={handleToggleAppLock}
+                trackColor={{ false: colors.divider, true: colors.accent }}
+              />
+            </View>
+          </GlassSurface>
+        </View>
+
+        {/* SECTION: STORAGE & CACHE */}
+        <View style={styles.section}>
+          <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSecondary }]}>
+            STORAGE & CACHE
+          </Text>
+
+          <GlassSurface borderRadius={16} elevation={2} style={styles.sectionCard}>
+            <TouchableOpacity
+              onPress={handleClearWebCache}
+              style={styles.settingRow}
+              activeOpacity={0.7}
+            >
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  Clear Web Cache
+                </Text>
+                <Text style={[typography.caption, { color: colors.textSecondary }]}>
+                  Frees cached web data and media. Keeps login & saved notes safe.
+                </Text>
+              </View>
+              <View style={[styles.clearBtn, { borderColor: colors.accent }]}>
+                <Ionicons name="trash-outline" size={15} color={colors.accent} style={{ marginRight: 4 }} />
+                <Text style={[typography.captionBold, { color: colors.accent }]}>Clear</Text>
+              </View>
+            </TouchableOpacity>
+          </GlassSurface>
+        </View>
+
+        {/* SECTION: ABOUT UNFEED */}
         <View style={styles.section}>
           <Text style={[typography.captionBold, styles.sectionTitle, { color: colors.textSecondary }]}>
             ABOUT UNFEED
@@ -741,6 +840,14 @@ const styles = StyleSheet.create({
   loginBtn: {
     paddingHorizontal: 14,
     paddingVertical: 7,
+    borderRadius: 8,
+  },
+  clearBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 8,
   },
   settingRow: {

@@ -16,6 +16,7 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { UnfeedWordmark } from './src/components/common/UnfeedWordmark';
 import { DailyLimitReachedModal } from './src/components/focus/DailyLimitReachedModal';
 import { SessionTimerReminderModal } from './src/components/focus/SessionTimerReminderModal';
+import { AppLockScreen } from './src/components/focus/AppLockScreen';
 
 export const navigationRef = createNavigationContainerRef<any>();
 
@@ -23,6 +24,8 @@ const AppContent: React.FC = () => {
   const { isDark, colors } = useTheme();
   const isDailyLimitReached = useAppStore((state) => state.isDailyLimitReached);
   const isSessionTimerAlertVisible = useAppStore((state) => state.isSessionTimerAlertVisible);
+  const isAppLocked = useAppStore((state) => state.isAppLocked);
+  const unlockApp = useAppStore((state) => state.unlockApp);
   const dismissDailyLimit = useAppStore((state) => state.dismissDailyLimit);
   const dismissSessionTimerAlert = useAppStore((state) => state.dismissSessionTimerAlert);
 
@@ -52,6 +55,10 @@ const AppContent: React.FC = () => {
         visible={isSessionTimerAlertVisible}
         onDismiss={dismissSessionTimerAlert}
       />
+      <AppLockScreen
+        isLocked={isAppLocked}
+        onUnlock={unlockApp}
+      />
     </NavigationContainer>
   );
 };
@@ -77,11 +84,14 @@ export default function App() {
     // Request Android notification permissions on startup
     Notifications.requestPermissionsAsync().catch(() => {});
 
-    // App State lifecycle listener: save cap on background, refresh on active
+    // App State lifecycle listener: save cap on background, re-lock if biometrics enabled
     const subscription = RNAppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'background' || nextAppState === 'inactive') {
         pauseStoryViewingSession();
         saveStoryCapUsage();
+        if (useAppStore.getState().focusSettings.appLockEnabled) {
+          useAppStore.setState({ isAppLocked: true });
+        }
       } else if (nextAppState === 'active') {
         tickStoryTime();
         resumeStoryViewingSession();

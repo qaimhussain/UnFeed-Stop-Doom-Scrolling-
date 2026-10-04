@@ -152,10 +152,14 @@ interface AppState {
   dismissSessionTimerAlert: () => void;
   toggleNotifications: () => Promise<void>;
   toggleReduceEffects: () => Promise<void>;
+  toggleAppLock: (enabled?: boolean) => Promise<void>;
+  isAppLocked: boolean;
+  unlockApp: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
   isInitialized: false,
+  isAppLocked: false,
   currentUser: CURRENT_USER,
   contacts: MOCK_CONTACTS,
   userNote: INITIAL_USER_NOTE,
@@ -173,6 +177,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     notificationsEnabled: true,
     themeMode: 'system',
     reduceEffects: false,
+    appLockEnabled: false,
   },
   screenTime: {
     todayDate: getTodayString(),
@@ -325,6 +330,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         savedItems: savedItems,
         personalNotes: savedNotes,
         focusSettings: savedFocus,
+        isAppLocked: !!savedFocus?.appLockEnabled,
         screenTime: activeScreenTime,
         isDemoMode: savedIsIgLoggedIn ? false : savedIsDemoMode,
         isInstagramLoggedIn: savedIsIgLoggedIn,
@@ -1049,6 +1055,20 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
     set({ focusSettings: updated });
     await storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, updated);
+  },
+
+  toggleAppLock: async (enabled) => {
+    const nextVal = enabled !== undefined ? enabled : !get().focusSettings.appLockEnabled;
+    const updated = {
+      ...get().focusSettings,
+      appLockEnabled: nextVal,
+    };
+    set({ focusSettings: updated });
+    await storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, updated);
+  },
+
+  unlockApp: () => {
+    set({ isAppLocked: false });
   },
 }));
 
