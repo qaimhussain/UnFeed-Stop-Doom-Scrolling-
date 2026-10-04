@@ -142,7 +142,7 @@ interface AppState {
   togglePinNote: (id: string) => Promise<void>;
 
   // Screen Time & Wellbeing ("Time in Unfeed")
-  setDailyLimit: (minutes: number | null) => Promise<void>;
+  setDailyLimit: (minutes: number | null) => Promise<{ success: boolean; message?: string }>;
   snoozeDailyLimit: () => Promise<void>;
   lockUntilTomorrow: () => Promise<void>;
   startSessionTimer: (minutes: number | null) => Promise<void>;
@@ -176,7 +176,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   screenTime: {
     todayDate: getTodayString(),
-    minutesToday: 18,
+    minutesToday: 0,
     secondsAccumulated: 0,
     snoozeCountToday: 0,
     isLockedUntilTomorrow: false,
@@ -248,7 +248,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         }),
         storageService.getItem<ScreenTimeState>(STORAGE_KEYS.SCREEN_TIME, {
           todayDate: today,
-          minutesToday: 18,
+          minutesToday: 0,
           secondsAccumulated: 0,
           snoozeCountToday: 0,
           isLockedUntilTomorrow: false,
@@ -892,9 +892,36 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setDailyLimit: async (minutes) => {
-    const updated = { ...get().focusSettings, dailyLimitMinutes: minutes };
-    set({ focusSettings: updated });
+    const currentLimit = get().focusSettings.dailyLimitMinutes;
+    const currentMinutes = get().screenTime.minutesToday;
+    const isLockedTomorrow = get().screenTime.isLockedUntilTomorrow;
+    const isLimitExhaustedToday = isLockedTomorrow || (currentLimit !== null && currentMinutes >= currentLimit);
+
+    // ANTI-CHEAT ENFORCEMENT:
+    // If times run out like 15 mins already, user can't cheat and switch to 20, 30, 60 or Off to get more time.
+    if (isLimitExhaustedToday) {
+      if (minutes === null || (currentLimit !== null && minutes > currentLimit)) {
+        return {
+          success: false,
+          message: `Anti-cheat active: You've already reached your ${currentLimit}m daily limit today (${currentMinutes}m used). To protect your focus, your limit cannot be extended or disabled until tomorrow at midnight.`,
+        };
+      }
+    }
+
+    // Limit is clamped to 60 minutes (1 hour max)
+    const clampedMinutes = minutes !== null ? Math.min(60, Math.max(1, minutes)) : null;
+
+    const updated = { ...get().focusSettings, dailyLimitMinutes: clampedMinutes };
+    
+    // Check if new setting triggers lock
+    const shouldLock = isLockedTomorrow || (clampedMinutes !== null && currentMinutes >= clampedMinutes);
+
+    set({
+      focusSettings: updated,
+      isDailyLimitReached: shouldLock,
+    });
     await storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, updated);
+    return { success: true };
   },
 
   snoozeDailyLimit: async () => {
@@ -906,23 +933,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       snoozeCountToday: current.snoozeCountToday + 1,
     };
 
-    // Add 5 minutes to today's active limit
-    const currentLimit = get().focusSettings.dailyLimitMinutes ?? current.minutesToday;
-    const updatedSettings = {
-      ...get().focusSettings,
-      dailyLimitMinutes: Math.max(currentLimit, current.minutesToday) + 5,
-    };
-
     set({
       screenTime: updatedScreenTime,
-      focusSettings: updatedSettings,
       isDailyLimitReached: false,
     });
 
-    await Promise.all([
-      storageService.setItem(STORAGE_KEYS.SCREEN_TIME, updatedScreenTime),
-      storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, updatedSettings),
-    ]);
+    await storageService.setItem(STORAGE_KEYS.SCREEN_TIME, updatedScreenTime);
   },
 
   lockUntilTomorrow: async () => {
@@ -986,7 +1002,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
 
     const limit = get().focusSettings.dailyLimitMinutes;
-    const reachedLimit = lockedTomorrow || (limit !== null && newMinutes >= limit);
+    // Each snooze extension grants 5 minutes
+    const effectiveLimit = limit !== null ? limit + (snoozeCount * 5) : null;
+    const reachedLimit = lockedTomorrow || (effectiveLimit !== null && newMinutes >= effectiveLimit);
 
     // Check session timer
     const sessionMins = get().focusSettings.sessionTimerMinutes;

@@ -139,13 +139,27 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
     (request: { url: string; isTopFrame?: boolean }) => {
       const { url } = request;
 
-      // Allow about:blank, data: and blob:
+      // Security: block dangerous protocols
+      if (
+        url.startsWith('javascript:') ||
+        url.startsWith('file:') ||
+        url.startsWith('content:') ||
+        url.startsWith('intent:')
+      ) {
+        return false;
+      }
+
+      // Allow about:blank and blob:
       if (
         url.startsWith('about:') ||
-        url.startsWith('data:') ||
         url.startsWith('blob:')
       ) {
         return true;
+      }
+
+      // Enforce HTTPS
+      if (!url.startsWith('https://')) {
+        return false;
       }
 
       // If inside DM, prevent navigating to the home feed
@@ -374,6 +388,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
         }}
         style={styles.webView}
         setSupportMultipleWindows={false}
+        javaScriptCanOpenWindowsAutomatically={false}
         allowsBackForwardNavigationGestures={true}
         pullToRefreshEnabled={true}
         allowFileAccess={false}

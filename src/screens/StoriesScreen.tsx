@@ -40,11 +40,17 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
   const startStoryViewingSession = useAppStore((state) => state.startStoryViewingSession);
   const endStoryViewingSession = useAppStore((state) => state.endStoryViewingSession);
   const tickStoryTime = useAppStore((state) => state.tickStoryTime);
+  const screenTime = useAppStore((state) => state.screenTime);
+  const dailyLimitMinutes = useAppStore((state) => state.focusSettings.dailyLimitMinutes);
 
   const [activeStoryIndex, setActiveStoryIndex] = useState<number | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentUrl, setCurrentUrl] = useState<string>('');
   const webViewRef = useRef<any>(null);
+
+  // Daily focus limit logic
+  const effectiveDailyLimit = dailyLimitMinutes !== null ? dailyLimitMinutes + (screenTime.snoozeCountToday * 5) : null;
+  const isFeedDailyLocked = screenTime.isLockedUntilTomorrow || (effectiveDailyLimit !== null && screenTime.minutesToday >= effectiveDailyLimit);
 
   // Clearance so content stops right above floating tab bar
   const bottomTabBarClearance = 50 + Math.max(insets.bottom, Platform.OS === 'android' ? 10 : 16) + 16;
@@ -89,6 +95,77 @@ export const StoriesScreen: React.FC<StoriesScreenProps> = ({ navigation }) => {
   const handleOpenStory = (index: number) => {
     setActiveStoryIndex(index);
   };
+
+  // When daily limit is reached or locked until tomorrow, the feed rests while Chats and Saved remain active
+  if (isFeedDailyLocked) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
+        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.headerIconButton}
+            onPress={() => navigation.navigate('Settings')}
+            accessibilityLabel="Settings"
+          >
+            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.restingContainer, { paddingBottom: bottomTabBarClearance }]}>
+          <GlassSurface
+            useRealBlur={true}
+            blurIntensity={50}
+            borderRadius={28}
+            elevation={8}
+            style={styles.restingCard}
+          >
+            <View style={[styles.restingIconCircle, { backgroundColor: colors.accentSecondary }]}>
+              <Ionicons name="moon" size={36} color={colors.accent} />
+            </View>
+            <Text style={[typography.h2, { color: colors.textPrimary, textAlign: 'center', marginBottom: 8 }]}>
+              Feed is Resting
+            </Text>
+            <Text style={[typography.body, { color: colors.textSecondary, textAlign: 'center', lineHeight: 21, marginBottom: 16 }]}>
+              You hit today's daily focus limit. Feed and stories are asleep until tomorrow morning so you can stay in flow.
+            </Text>
+
+            <View style={[styles.restingBadge, { backgroundColor: 'rgba(16, 208, 112, 0.1)', borderColor: 'rgba(16, 208, 112, 0.25)' }]}>
+              <Ionicons name="chatbubbles-outline" size={15} color="#10D070" style={{ marginRight: 6 }} />
+              <Text style={[typography.captionBold, { color: '#10D070' }]}>
+                Chats &amp; Saved are always open
+              </Text>
+            </View>
+
+            <View style={styles.restingActions}>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Messages')}
+                style={[styles.restingActionBtn, { backgroundColor: colors.accent }]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="paper-plane" size={17} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={[typography.bodyBold, { color: '#FFFFFF' }]}>
+                  Go to Chats
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Saved')}
+                style={[styles.restingSecondaryBtn, { backgroundColor: colors.surfaceSecondary, borderColor: colors.divider }]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="bookmark-outline" size={17} color={colors.textPrimary} style={{ marginRight: 8 }} />
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  Open My Saved
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </GlassSurface>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Real Instagram Stories Mode (Logged in with real account)
   if (!isDemoMode && isInstagramLoggedIn) {
@@ -368,5 +445,55 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     width: '100%',
     alignItems: 'center',
+  },
+  restingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  restingCard: {
+    width: '100%',
+    maxWidth: 340,
+    padding: 24,
+    alignItems: 'center',
+  },
+  restingIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  restingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  restingActions: {
+    width: '100%',
+    gap: 10,
+  },
+  restingActionBtn: {
+    width: '100%',
+    height: 48,
+    borderRadius: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  restingSecondaryBtn: {
+    width: '100%',
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 0.5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

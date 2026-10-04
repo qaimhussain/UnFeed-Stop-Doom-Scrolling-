@@ -50,11 +50,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
     setThemeMode(mode);
   };
 
-  const handleSetDailyLimit = (minutes: number | null) => {
+  const handleSetDailyLimit = async (minutes: number | null) => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
-    setDailyLimit(minutes);
+    const res = await setDailyLimit(minutes);
+    if (res && !res.success) {
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+      }
+      Alert.alert('🔒 Anti-Cheat Active', res.message || 'You cannot extend your limit today.');
+    }
   };
 
   const handleStartSession = (minutes: number) => {
@@ -229,32 +235,92 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ navigation }) =>
             </Text>
 
             <View style={styles.chipRow}>
-              {[null, 15, 30, 45, 60].map((limit) => {
+              {[
+                { value: null, label: 'Off' },
+                { value: 15, label: '15m' },
+                { value: 20, label: '20m' },
+                { value: 30, label: '30m' },
+                { value: 60, label: '1 hr (Max)' },
+              ].map(({ value: limit, label }) => {
                 const isSelected = focusSettings.dailyLimitMinutes === limit;
+                const currentLimit = focusSettings.dailyLimitMinutes;
+                const isLimitExhaustedToday =
+                  screenTime.isLockedUntilTomorrow ||
+                  (currentLimit !== null && screenTime.minutesToday >= currentLimit);
+                const isBlockedByAntiCheat =
+                  isLimitExhaustedToday && (limit === null || (currentLimit !== null && limit > currentLimit));
+
                 return (
                   <TouchableOpacity
                     key={String(limit)}
                     onPress={() => handleSetDailyLimit(limit)}
+                    activeOpacity={isBlockedByAntiCheat ? 0.6 : 0.8}
                     style={[
                       styles.chip,
                       {
-                        backgroundColor: isSelected ? colors.accent : colors.surface,
-                        borderColor: isSelected ? colors.accent : colors.divider,
+                        backgroundColor: isSelected
+                          ? colors.accent
+                          : isBlockedByAntiCheat
+                          ? colors.surfaceSecondary
+                          : colors.surface,
+                        borderColor: isSelected
+                          ? colors.accent
+                          : isBlockedByAntiCheat
+                          ? colors.divider
+                          : colors.divider,
+                        opacity: isBlockedByAntiCheat ? 0.6 : 1,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        typography.captionBold,
-                        { color: isSelected ? '#FFFFFF' : colors.textPrimary },
-                      ]}
-                    >
-                      {limit === null ? 'Off' : `${limit}m`}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      {isBlockedByAntiCheat && (
+                        <Ionicons
+                          name="lock-closed"
+                          size={12}
+                          color={colors.textTertiary}
+                          style={{ marginRight: 4 }}
+                        />
+                      )}
+                      <Text
+                        style={[
+                          typography.captionBold,
+                          {
+                            color: isSelected
+                              ? '#FFFFFF'
+                              : isBlockedByAntiCheat
+                              ? colors.textTertiary
+                              : colors.textPrimary,
+                          },
+                        ]}
+                      >
+                        {label}
+                      </Text>
+                    </View>
                   </TouchableOpacity>
                 );
               })}
             </View>
+
+            {/* Anti-cheat status banner */}
+            {(screenTime.isLockedUntilTomorrow ||
+              (focusSettings.dailyLimitMinutes !== null &&
+                screenTime.minutesToday >= focusSettings.dailyLimitMinutes)) && (
+              <View
+                style={[
+                  styles.antiCheatBanner,
+                  {
+                    backgroundColor: 'rgba(255, 160, 0, 0.1)',
+                    borderColor: 'rgba(255, 160, 0, 0.25)',
+                  },
+                ]}
+              >
+                <Ionicons name="shield-checkmark" size={16} color="#FFA000" style={{ marginRight: 8 }} />
+                <Text style={[typography.caption, { color: colors.textSecondary, flex: 1 }]}>
+                  <Text style={{ fontWeight: '700', color: '#FFA000' }}>Anti-cheat active: </Text>
+                  Today's limit of {focusSettings.dailyLimitMinutes}m reached ({screenTime.minutesToday}m used). Higher limits are locked until tomorrow.
+                </Text>
+              </View>
+            )}
 
             <HairlineDivider style={{ marginVertical: 16 }} />
 
@@ -642,6 +708,14 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
+  },
+  antiCheatBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginTop: 12,
   },
   activeSessionBox: {
     flexDirection: 'row',

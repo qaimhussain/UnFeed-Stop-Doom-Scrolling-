@@ -45,7 +45,7 @@ export const SessionTimerReminderModal: React.FC<SessionTimerReminderModalProps>
               { color: colors.textPrimary, textAlign: 'center', marginBottom: 8 },
             ]}
           >
-            Session time is up
+            Session Complete
           </Text>
 
           <Text
@@ -59,7 +59,7 @@ export const SessionTimerReminderModal: React.FC<SessionTimerReminderModalProps>
               },
             ]}
           >
-            Your {sessionMinutes || 10}-minute intentional session has completed. Time to step away and return to what matters.
+            Your {sessionMinutes || 10}-minute intentional focus window is wrapped up. Take a deep breath, step away, and return to what truly moves you.
           </Text>
 
           <TouchableOpacity
@@ -67,7 +67,7 @@ export const SessionTimerReminderModal: React.FC<SessionTimerReminderModalProps>
             style={[styles.dismissBtn, { backgroundColor: colors.accent }]}
             activeOpacity={0.8}
           >
-            <Text style={[typography.bodyBold, { color: '#FFFFFF' }]}>Done for now</Text>
+            <Text style={[typography.bodyBold, { color: '#FFFFFF' }]}>Back to the real world</Text>
           </TouchableOpacity>
         </View>
       </View>

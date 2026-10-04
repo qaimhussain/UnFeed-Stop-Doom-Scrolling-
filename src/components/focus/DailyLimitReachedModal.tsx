@@ -12,6 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAppStore } from '../../store/useAppStore';
 import { GlassSurface } from './GlassSurface';
+import { navigationRef } from '../../../App';
 
 interface DailyLimitReachedModalProps {
   visible: boolean;
@@ -22,13 +23,13 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
   visible,
   onDismiss,
 }) => {
-  const { colors, typography } = useTheme();
+  const { colors, typography, isDark } = useTheme();
   const screenTime = useAppStore((state) => state.screenTime);
   const dailyLimitMinutes = useAppStore((state) => state.focusSettings.dailyLimitMinutes);
   const snoozeDailyLimit = useAppStore((state) => state.snoozeDailyLimit);
   const lockUntilTomorrow = useAppStore((state) => state.lockUntilTomorrow);
 
-  // 10-second delay countdown before "5 more minutes" is tappable
+  // 10-second reflection countdown before "5 more minutes" is tappable
   const [countdown, setCountdown] = useState(10);
   const isLockedMessage = screenTime.isLockedUntilTomorrow;
 
@@ -69,19 +70,54 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
     await lockUntilTomorrow();
   };
 
+  const handleGoToChats = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    onDismiss();
+    try {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('MainTabs', { screen: 'Messages' });
+      }
+    } catch {}
+  };
+
+  const handleGoToSaved = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    }
+    onDismiss();
+    try {
+      if (navigationRef.isReady()) {
+        navigationRef.navigate('MainTabs', { screen: 'Saved' });
+      }
+    } catch {}
+  };
+
   return (
-    <Modal visible={visible} animationType="fade" transparent onRequestClose={() => {}}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onDismiss}>
       <View style={[styles.overlay, { backgroundColor: colors.modalOverlay }]}>
         <GlassSurface
           borderRadius={24}
-          elevation={10}
+          elevation={12}
           style={styles.card}
         >
           <View style={styles.cardInner}>
+            {/* Top Close Button so user is never trapped */}
+            <TouchableOpacity
+              onPress={onDismiss}
+              style={[styles.closeIconBtn, { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)' }]}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Dismiss modal"
+            >
+              <Ionicons name="close" size={18} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            {/* Glowing Icon */}
             <View style={[styles.iconCircle, { backgroundColor: colors.accentSecondary }]}>
               <Ionicons
-                name={isLockedMessage ? 'moon-outline' : 'leaf-outline'}
-                size={34}
+                name={isLockedMessage ? 'moon' : 'sparkles'}
+                size={32}
                 color={colors.accent}
               />
             </View>
@@ -93,8 +129,8 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
               ]}
             >
               {isLockedMessage
-                ? 'Unfeed is resting'
-                : "You've reached your daily limit"}
+                ? 'Unfeed Rest Mode Active'
+                : 'Daily Focus Goal Reached'}
             </Text>
 
             <Text
@@ -104,32 +140,40 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
                   color: colors.textSecondary,
                   textAlign: 'center',
                   lineHeight: 20,
-                  marginBottom: 16,
-                  paddingHorizontal: 8,
+                  marginBottom: 14,
+                  paddingHorizontal: 6,
                 },
               ]}
             >
               {isLockedMessage
-                ? 'Locked until tomorrow. Step away, rest your eyes, and connect with people in real life.'
-                : `You set a daily limit of ${dailyLimitMinutes}m. Time in Unfeed today has reached ${screenTime.minutesToday}m.`}
+                ? 'The feed is asleep until tomorrow. Step away, recharge your eyes, and connect with people in real life — or catch up with friends in Chats.'
+                : `You hit your ${dailyLimitMinutes}m daily focus goal (${screenTime.minutesToday}m spent). Feed scrolling is paused, but your Chats and Saved remain completely open.`}
             </Text>
+
+            {/* Highlight Banner: Chats & Saved are always open */}
+            <View style={[styles.alwaysOpenBadge, { backgroundColor: isDark ? 'rgba(16, 208, 112, 0.12)' : 'rgba(16, 208, 112, 0.08)', borderColor: 'rgba(16, 208, 112, 0.25)' }]}>
+              <Ionicons name="lock-open-outline" size={14} color="#10D070" style={{ marginRight: 6 }} />
+              <Text style={[typography.captionBold, { color: '#10D070', fontSize: 11 }]}>
+                Chats & Saved are always unlocked
+              </Text>
+            </View>
 
             {/* Time in Unfeed Stats */}
             <View style={[styles.statsBox, { backgroundColor: colors.surfaceSecondary, borderColor: colors.divider }]}>
               <View style={styles.statCol}>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>Time in Unfeed</Text>
-                <Text style={[typography.h3, { color: colors.accent }]}>
+                <Text style={[typography.caption, { color: colors.textSecondary, fontSize: 11 }]}>Time Today</Text>
+                <Text style={[typography.h3, { color: colors.accent, marginVertical: 2 }]}>
                   {screenTime.minutesToday}m
                 </Text>
                 <Text style={[typography.footnote, { color: colors.textTertiary, fontSize: 10 }]}>
-                  In-app usage only
+                  Active browsing
                 </Text>
               </View>
               <View style={[styles.statDivider, { backgroundColor: colors.divider }]} />
               <View style={styles.statCol}>
-                <Text style={[typography.caption, { color: colors.textSecondary }]}>Daily Goal</Text>
-                <Text style={[typography.h3, { color: colors.textPrimary }]}>
-                  {dailyLimitMinutes}m
+                <Text style={[typography.caption, { color: colors.textSecondary, fontSize: 11 }]}>Daily Target</Text>
+                <Text style={[typography.h3, { color: colors.textPrimary, marginVertical: 2 }]}>
+                  {dailyLimitMinutes ? `${dailyLimitMinutes}m` : 'Off'}
                 </Text>
                 <Text style={[typography.footnote, { color: colors.textTertiary, fontSize: 10 }]}>
                   {2 - screenTime.snoozeCountToday} extension left
@@ -137,67 +181,91 @@ export const DailyLimitReachedModal: React.FC<DailyLimitReachedModalProps> = ({
               </View>
             </View>
 
-            {!isLockedMessage ? (
-              <View style={styles.actionContainer}>
-                {/* Option 1: Lock until tomorrow */}
-                <TouchableOpacity
-                  onPress={handleLockUntilTomorrow}
-                  style={[styles.lockBtn, { backgroundColor: colors.accent }]}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="lock-closed" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
-                  <Text style={[typography.bodyBold, { color: '#FFFFFF' }]}>
-                    Lock until tomorrow
-                  </Text>
-                </TouchableOpacity>
+            {/* Primary Navigation Actions: Chats & Saved */}
+            <View style={styles.actionContainer}>
+              <TouchableOpacity
+                onPress={handleGoToChats}
+                style={[styles.primaryActionBtn, { backgroundColor: colors.accent }]}
+                activeOpacity={0.85}
+              >
+                <Ionicons name="paper-plane" size={17} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={[typography.bodyBold, { color: '#FFFFFF' }]}>
+                  Go to Chats
+                </Text>
+              </TouchableOpacity>
 
-                {/* Option 2: 5 more minutes (10s delay + max 2/day) */}
-                <TouchableOpacity
-                  onPress={handleSnooze}
-                  disabled={!isSnoozeEnabled}
-                  style={[
-                    styles.snoozeBtn,
-                    {
-                      borderColor: isSnoozeEnabled ? colors.divider : 'transparent',
-                      backgroundColor: isSnoozeEnabled
-                        ? colors.surfaceSecondary
-                        : 'rgba(128, 128, 128, 0.1)',
-                      opacity: isSnoozeEnabled ? 1 : 0.65,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name="time-outline"
-                    size={16}
-                    color={isSnoozeEnabled ? colors.textPrimary : colors.textTertiary}
-                    style={{ marginRight: 6 }}
-                  />
-                  <Text
+              <TouchableOpacity
+                onPress={handleGoToSaved}
+                style={[
+                  styles.secondaryActionBtn,
+                  {
+                    backgroundColor: colors.surfaceSecondary,
+                    borderColor: colors.divider,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="bookmark-outline" size={17} color={colors.textPrimary} style={{ marginRight: 8 }} />
+                <Text style={[typography.bodyBold, { color: colors.textPrimary }]}>
+                  Open My Saved
+                </Text>
+              </TouchableOpacity>
+
+              {/* Extra Controls if not locked yet */}
+              {!isLockedMessage && (
+                <>
+                  {/* Snooze option with 10s delay */}
+                  <TouchableOpacity
+                    onPress={handleSnooze}
+                    disabled={!isSnoozeEnabled}
                     style={[
-                      typography.bodyMedium,
+                      styles.snoozeBtn,
                       {
-                        color: isSnoozeEnabled ? colors.textPrimary : colors.textTertiary,
-                        fontWeight: '600',
+                        borderColor: isSnoozeEnabled ? colors.divider : 'transparent',
+                        backgroundColor: isSnoozeEnabled
+                          ? 'rgba(128, 128, 128, 0.08)'
+                          : 'rgba(128, 128, 128, 0.04)',
+                        opacity: isSnoozeEnabled ? 1 : 0.65,
                       },
                     ]}
+                    activeOpacity={0.7}
                   >
-                    {!canSnooze
-                      ? '5 more minutes (Limit reached today)'
-                      : countdown > 0
-                      ? `5 more minutes (${countdown}s delay)`
-                      : `5 more minutes (${2 - screenTime.snoozeCountToday}/2 left)`}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.lockedNoticeBox}>
-                <Ionicons name="checkmark-circle" size={20} color="#10D070" style={{ marginRight: 6 }} />
-                <Text style={[typography.captionBold, { color: '#10D070' }]}>
-                  Protected until tomorrow morning
-                </Text>
-              </View>
-            )}
+                    <Ionicons
+                      name="time-outline"
+                      size={15}
+                      color={isSnoozeEnabled ? colors.textPrimary : colors.textTertiary}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text
+                      style={[
+                        typography.captionBold,
+                        {
+                          color: isSnoozeEnabled ? colors.textPrimary : colors.textTertiary,
+                        },
+                      ]}
+                    >
+                      {!canSnooze
+                        ? '5 more mins (Limit reached today)'
+                        : countdown > 0
+                        ? `5 more mins (${countdown}s reflection)`
+                        : `5 more mins (${2 - screenTime.snoozeCountToday}/2 extensions left)`}
+                    </Text>
+                  </TouchableOpacity>
+
+                  {/* Lock feed until tomorrow */}
+                  <TouchableOpacity
+                    onPress={handleLockUntilTomorrow}
+                    style={styles.lockUntilTomorrowTextBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="moon-outline" size={14} color={colors.textTertiary} style={{ marginRight: 5 }} />
+                    <Text style={[typography.caption, { color: colors.textTertiary }]}>
+                      Lock feed until tomorrow
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
         </GlassSurface>
       </View>
@@ -214,18 +282,39 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 340,
+    maxWidth: 350,
   },
   cardInner: {
     padding: 22,
     alignItems: 'center',
+    position: 'relative',
   },
-  iconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+  closeIconBtn: {
+    position: 'absolute',
+    top: 14,
+    right: 14,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 10,
+  },
+  iconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  alwaysOpenBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
     marginBottom: 14,
   },
   statsBox: {
@@ -233,8 +322,8 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 14,
     borderWidth: 0.5,
-    paddingVertical: 12,
-    marginBottom: 18,
+    paddingVertical: 10,
+    marginBottom: 16,
   },
   statCol: {
     flex: 1,
@@ -248,9 +337,9 @@ const styles = StyleSheet.create({
   },
   actionContainer: {
     width: '100%',
-    gap: 10,
+    gap: 9,
   },
-  lockBtn: {
+  primaryActionBtn: {
     width: '100%',
     height: 48,
     borderRadius: 24,
@@ -258,7 +347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  snoozeBtn: {
+  secondaryActionBtn: {
     width: '100%',
     height: 44,
     borderRadius: 22,
@@ -267,10 +356,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  lockedNoticeBox: {
+  snoozeBtn: {
+    width: '100%',
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 0.5,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+  },
+  lockUntilTomorrowTextBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
   },
 });
