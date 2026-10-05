@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,8 @@ import {
   Platform,
   Animated,
   Dimensions,
-  Image,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { WebView, WebViewNavigation } from 'react-native-webview';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -119,8 +118,29 @@ const LOGIN_MONITOR_JS = `
   true;
 `;
 
+const CAROUSEL_BENEFITS = [
+  {
+    icon: 'hourglass-outline',
+    gradient: ['#FA7E1E', '#D62976'] as [string, string],
+    title: 'Save Hours Every Day',
+    desc: 'Eliminate unconscious scroll binges so you can invest time into real-world goals and focus.',
+  },
+  {
+    icon: 'ban-outline',
+    gradient: ['#D62976', '#962FBF'] as [string, string],
+    title: 'Kill the Dopamine Loop',
+    desc: 'No home feed, no explore traps, and no infinite reels designed to steal your attention.',
+  },
+  {
+    icon: 'chatbubble-ellipses-outline',
+    gradient: ['#3797F0', '#4F5BD5'] as [string, string],
+    title: 'Essential Tools Only',
+    desc: 'Answer direct messages, check friends’ stories, grab your saved notes — then get back to life.',
+  },
+];
+
 export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSuccess }) => {
-  const { colors, typography, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const setInstagramLoggedIn = useAppStore((state) => state.setInstagramLoggedIn);
   const setDemoMode = useAppStore((state) => state.setDemoMode);
 
@@ -160,14 +180,6 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     setIsLoginModalVisible(true);
-  };
-
-  const handleStartDemoMode = async () => {
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    await setDemoMode(true);
-    if (onSuccess) onSuccess();
   };
 
   const handleCloseModal = () => {
@@ -224,72 +236,123 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   const orb2Color = isDark ? 'rgba(150, 47, 191, 0.14)' : 'rgba(214, 41, 118, 0.07)';
   const orb3Color = isDark ? 'rgba(79, 91, 213, 0.12)' : 'rgba(79, 91, 213, 0.06)';
 
-  // Carousel benefit slides
-  const CAROUSEL_BENEFITS = [
-    {
-      icon: 'hourglass-outline',
-      gradient: ['#FA7E1E', '#D62976'] as [string, string],
-      title: 'Save Hours Every Day',
-      desc: 'Eliminate unconscious scroll binges so you can invest time into real-world goals and focus.',
-    },
-    {
-      icon: 'ban-outline',
-      gradient: ['#D62976', '#962FBF'] as [string, string],
-      title: 'Kill the Dopamine Loop',
-      desc: 'No home feed, no explore traps, and no infinite reels designed to steal your attention.',
-    },
-    {
-      icon: 'chatbubble-ellipses-outline',
-      gradient: ['#3797F0', '#4F5BD5'] as [string, string],
-      title: 'Essential Tools Only',
-      desc: 'Answer direct messages, check friends’ stories, grab your saved notes — then get back to life.',
-    },
-  ];
+  const [activeCard, setActiveCard] = useState(0);
+  const activeCardRef = useRef(0);
 
-  const [activeSlide, setActiveSlide] = useState(0);
-  const [slideAnim] = useState(() => new Animated.Value(0));
-  const [fadeAnim] = useState(() => new Animated.Value(1));
+  useEffect(() => {
+    activeCardRef.current = activeCard;
+  }, [activeCard]);
 
-  const goToSlide = (nextIndex: number) => {
-    if (nextIndex === activeSlide) return;
-    if (Platform.OS !== 'web') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    }
-    const direction = nextIndex > activeSlide ? 1 : -1;
+  // Animated values for 3 overlapping deck positions:
+  // Slot 0 (Front): Y = 0, scale = 1.0, opacity = 1.0
+  // Slot 1 (Middle - 50% overlap): Y = 50, scale = 0.95, opacity = 0.72
+  // Slot 2 (Back - 50% overlap): Y = 96, scale = 0.90, opacity = 0.44
+  const [cardAnims] = useState(() => [
+    {
+      y: new Animated.Value(0),
+      scale: new Animated.Value(1),
+      opacity: new Animated.Value(1),
+    },
+    {
+      y: new Animated.Value(50),
+      scale: new Animated.Value(0.95),
+      opacity: new Animated.Value(0.72),
+    },
+    {
+      y: new Animated.Value(96),
+      scale: new Animated.Value(0.90),
+      opacity: new Animated.Value(0.44),
+    },
+  ]);
+
+  const isTransitioning = useRef(false);
+
+  const cycleToNextCard = useCallback(() => {
+    if (isTransitioning.current) return;
+    isTransitioning.current = true;
+
+    const current = activeCardRef.current;
+    const next = (current + 1) % CAROUSEL_BENEFITS.length;
+    const third = (current + 2) % CAROUSEL_BENEFITS.length;
+
+    // Fluid card shuffle animation:
+    // Front card floats up and fades
+    // Next card springs up from slot 1 to slot 0 (front)
+    // Third card springs up from slot 2 to slot 1 (middle)
     Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 0,
-        duration: 120,
+      Animated.timing(cardAnims[current].y, {
+        toValue: -34,
+        duration: 220,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
-        toValue: -16 * direction,
-        duration: 120,
+      Animated.timing(cardAnims[current].opacity, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardAnims[current].scale, {
+        toValue: 0.92,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+
+      Animated.spring(cardAnims[next].y, {
+        toValue: 0,
+        tension: 65,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.spring(cardAnims[next].scale, {
+        toValue: 1.0,
+        tension: 65,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardAnims[next].opacity, {
+        toValue: 1.0,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+
+      Animated.spring(cardAnims[third].y, {
+        toValue: 50,
+        tension: 65,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.spring(cardAnims[third].scale, {
+        toValue: 0.95,
+        tension: 65,
+        friction: 9,
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardAnims[third].opacity, {
+        toValue: 0.72,
+        duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setActiveSlide(nextIndex);
-      slideAnim.setValue(16 * direction);
-      Animated.parallel([
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          tension: 75,
-          friction: 9,
-          useNativeDriver: true,
-        }),
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 180,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      // Outgoing card resets to slot 2 (back position)
+      cardAnims[current].y.setValue(96);
+      cardAnims[current].scale.setValue(0.90);
+      Animated.timing(cardAnims[current].opacity, {
+        toValue: 0.44,
+        duration: 200,
+        useNativeDriver: true,
+      }).start(() => {
+        setActiveCard(next);
+        isTransitioning.current = false;
+      });
     });
-  };
+  }, [cardAnims]);
 
-  const handleNextSlide = () => {
-    const next = (activeSlide + 1) % CAROUSEL_BENEFITS.length;
-    goToSlide(next);
-  };
+  // Automatically cycle through cards every 3.2 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      cycleToNextCard();
+    }, 3200);
+    return () => clearInterval(timer);
+  }, [cycleToNextCard]);
 
   return (
     <SafeAreaView style={styles.outer} edges={['top', 'bottom']}>
@@ -299,7 +362,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       <LinearGradient
         colors={bgGradient}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
@@ -343,88 +406,105 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           </Text>
         </View>
 
-        {/* Interactive Benefit Carousel Card */}
-        <GlassSurface
-          useRealBlur={true}
-          blurIntensity={isDark ? 55 : 35}
-          borderRadius={24}
-          elevation={isDark ? 10 : 6}
-          highlightIntensity={isDark ? 0.16 : 0.08}
-          style={styles.carouselCard}
-        >
-          <Animated.View
-            style={[
-              styles.slideContent,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateX: slideAnim }],
-              },
-            ]}
+        {/* Overlapping Half-Half Auto-Playing Benefit Card Deck */}
+        <View style={styles.deckSection}>
+          <TouchableOpacity
+            activeOpacity={0.96}
+            style={styles.cardDeckContainer}
+            onPress={() => {
+              if (Platform.OS !== 'web') {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+              }
+              cycleToNextCard();
+            }}
           >
-            <View style={styles.slideHeaderRow}>
-              <LinearGradient
-                colors={CAROUSEL_BENEFITS[activeSlide].gradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.slideIconWrap}
-              >
-                <Ionicons
-                  name={CAROUSEL_BENEFITS[activeSlide].icon as any}
-                  size={20}
-                  color="#FFFFFF"
-                />
-              </LinearGradient>
-              <Text style={[styles.slideTitle, { color: colors.textPrimary }]}>
-                {CAROUSEL_BENEFITS[activeSlide].title}
-              </Text>
-            </View>
+            {CAROUSEL_BENEFITS.map((benefit, idx) => {
+              const relSlot = (idx - activeCard + CAROUSEL_BENEFITS.length) % CAROUSEL_BENEFITS.length;
+              const isFront = relSlot === 0;
+              const isMid = relSlot === 1;
 
-            <Text style={[styles.slideDesc, { color: colors.textSecondary }]}>
-              {CAROUSEL_BENEFITS[activeSlide].desc}
-            </Text>
-          </Animated.View>
-
-          {/* Carousel footer: Pagination indicators + Next arrow */}
-          <View style={[styles.carouselFooter, { borderTopColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}>
-            <View style={styles.dotsRow}>
-              {CAROUSEL_BENEFITS.map((_, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  activeOpacity={0.7}
-                  onPress={() => goToSlide(idx)}
-                  hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              return (
+                <Animated.View
+                  key={benefit.title}
+                  pointerEvents={isFront ? 'auto' : 'none'}
+                  style={[
+                    styles.stackedCardWrapper,
+                    {
+                      zIndex: isFront ? 10 : isMid ? 5 : 1,
+                      opacity: cardAnims[idx].opacity,
+                      transform: [
+                        { translateY: cardAnims[idx].y },
+                        { scale: cardAnims[idx].scale },
+                      ],
+                    },
+                  ]}
                 >
-                  <View
+                  <GlassSurface
+                    useRealBlur={true}
+                    blurIntensity={isDark ? 60 : 35}
+                    borderRadius={22}
+                    elevation={isFront ? (isDark ? 8 : 4) : 2}
+                    highlightIntensity={isFront ? (isDark ? 0.22 : 0.12) : 0.08}
                     style={[
-                      styles.dot,
-                      idx === activeSlide
-                        ? [styles.activeDot, { backgroundColor: colors.accent }]
-                        : [styles.inactiveDot, { backgroundColor: isDark ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.16)' }],
+                      styles.benefitCardSurface,
+                      isFront && {
+                        borderColor: isDark ? 'rgba(255, 255, 255, 0.40)' : 'rgba(255, 255, 255, 0.95)',
+                      },
                     ]}
-                  />
-                </TouchableOpacity>
-              ))}
-            </View>
+                  >
+                    <View style={styles.cardHeaderRow}>
+                      <LinearGradient
+                        colors={benefit.gradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.cardIconWrap}
+                      >
+                        <Ionicons
+                          name={benefit.icon as any}
+                          size={18}
+                          color="#FFFFFF"
+                        />
+                      </LinearGradient>
+                      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
+                        {benefit.title}
+                      </Text>
+                    </View>
 
-            <TouchableOpacity
-              activeOpacity={0.75}
-              onPress={handleNextSlide}
-              style={[
-                styles.nextArrowBtn,
-                {
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.05)',
-                  borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.08)',
-                },
-              ]}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              accessibilityLabel="Next feature"
-            >
-              <Ionicons name="arrow-forward" size={16} color={colors.textPrimary} />
-            </TouchableOpacity>
+                    <Text
+                      numberOfLines={2}
+                      style={[
+                        styles.cardDesc,
+                        { color: isFront ? colors.textSecondary : colors.textTertiary },
+                      ]}
+                    >
+                      {benefit.desc}
+                    </Text>
+                  </GlassSurface>
+                </Animated.View>
+              );
+            })}
+          </TouchableOpacity>
+
+          {/* Clean Pagination Progress Dots */}
+          <View style={styles.paginationDotsRow}>
+            {CAROUSEL_BENEFITS.map((_, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.dot,
+                  idx === activeCard
+                    ? [styles.activeDot, { backgroundColor: colors.accent }]
+                    : [
+                        styles.inactiveDot,
+                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.16)' },
+                      ],
+                ]}
+              />
+            ))}
           </View>
-        </GlassSurface>
+        </View>
 
-        {/* Action buttons */}
+        {/* Action button */}
         <View style={styles.actionSection}>
           <TouchableOpacity
             activeOpacity={0.85}
@@ -440,28 +520,6 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
               <Ionicons name="logo-instagram" size={20} color="#FFFFFF" style={{ marginRight: 10 }} />
               <Text style={styles.loginButtonText}>Continue with Instagram</Text>
             </LinearGradient>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={[
-              styles.demoButton,
-              {
-                borderColor: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.12)',
-                backgroundColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-              },
-            ]}
-            onPress={handleStartDemoMode}
-          >
-            <Ionicons
-              name="sparkles-outline"
-              size={16}
-              color={colors.textSecondary}
-              style={{ marginRight: 7 }}
-            />
-            <Text style={[styles.demoButtonText, { color: colors.textSecondary }]}>
-              Explore Demo Mode
-            </Text>
           </TouchableOpacity>
 
           <Text style={[styles.privacyNote, { color: colors.textTertiary }]}>
@@ -619,68 +677,68 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     letterSpacing: 0.1,
   },
-  carouselCard: {
-    padding: 20,
+  deckSection: {
     marginVertical: 14,
-    minHeight: 160,
+    alignItems: 'center',
+    width: '100%',
   },
-  slideContent: {
-    minHeight: 88,
-    justifyContent: 'center',
+  cardDeckContainer: {
+    width: '100%',
+    height: 205,
+    position: 'relative',
+    alignItems: 'center',
   },
-  slideHeaderRow: {
+  stackedCardWrapper: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    width: '100%',
+  },
+  benefitCardSurface: {
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    minHeight: 104,
+  },
+  cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 8,
   },
-  slideIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+  cardIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  slideTitle: {
+  cardTitle: {
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.2,
   },
-  slideDesc: {
+  cardDesc: {
     fontSize: 13,
-    lineHeight: 19,
-    paddingLeft: 50,
+    lineHeight: 18,
+    paddingLeft: 48,
   },
-  carouselFooter: {
+  paginationDotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 14,
+    justifyContent: 'center',
     marginTop: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  dotsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
   dot: {
     height: 6,
     borderRadius: 3,
-    marginRight: 6,
+    marginHorizontal: 3,
   },
   activeDot: {
     width: 22,
   },
   inactiveDot: {
     width: 6,
-  },
-  nextArrowBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   actionSection: {
     alignItems: 'center',
@@ -707,21 +765,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.2,
-  },
-  demoButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 22,
-    borderRadius: 14,
-    borderWidth: 1,
-    width: SCREEN_WIDTH - 48,
-  },
-  demoButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   privacyNote: {
     fontSize: 11,

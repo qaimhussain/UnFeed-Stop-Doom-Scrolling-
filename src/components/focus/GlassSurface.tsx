@@ -69,15 +69,15 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
     );
   }
 
-  // Tinted background matching Android glass specifications
+  // Apple-grade Clear Crystal Glass: ultra-translucent luminous white sheen with zero grayish/silverish tint
   const backgroundColor = isDark
-    ? 'rgba(30, 30, 30, 0.60)'
-    : 'rgba(255, 255, 255, 0.65)';
+    ? 'rgba(255, 255, 255, 0.08)'
+    : 'rgba(255, 255, 255, 0.75)';
 
-  // 0.5px light border
+  // Pristine specular crystal refraction border (no dull black or gray borders)
   const borderColor = isDark
-    ? 'rgba(255, 255, 255, 0.25)'
-    : 'rgba(0, 0, 0, 0.08)';
+    ? 'rgba(255, 255, 255, 0.28)'
+    : 'rgba(255, 255, 255, 0.85)';
 
   // Should we render real blur?
   const shouldRenderRealBlur = useRealBlur;
@@ -91,7 +91,7 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
           borderColor,
           borderWidth: 0.5,
           elevation,
-          shadowOpacity: isDark ? 0.35 : 0.12,
+          shadowOpacity: isDark ? 0.38 : 0.08,
         },
         style,
       ]}
@@ -108,8 +108,8 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
             { borderRadius },
             Platform.select({
               web: {
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
               } as any,
               default: {},
             }),
@@ -117,7 +117,7 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
         />
       )}
 
-      {/* Tinted Glass Layer */}
+      {/* Crystal Clear Glass Base Layer */}
       <View
         style={[
           StyleSheet.absoluteFill,
@@ -128,14 +128,23 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
         ]}
       />
 
-      {/* Subtle Vertical LinearGradient Specular Highlight */}
+      {/* Prismatic LinearGradient Specular Highlight */}
       <LinearGradient
-        colors={[
-          `rgba(255, 255, 255, ${highlightIntensity})`,
-          'rgba(255, 255, 255, 0.0)',
-        ]}
+        colors={
+          isDark
+            ? [
+                `rgba(255, 255, 255, ${Math.max(highlightIntensity, 0.18)})`,
+                'rgba(255, 255, 255, 0.04)',
+                'rgba(255, 255, 255, 0.0)',
+              ]
+            : [
+                'rgba(255, 255, 255, 0.36)',
+                'rgba(255, 255, 255, 0.08)',
+                'rgba(255, 255, 255, 0.0)',
+              ]
+        }
         start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+        end={{ x: 0.5, y: 0.75 }}
         style={[
           StyleSheet.absoluteFill,
           {
@@ -145,7 +154,7 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
         pointerEvents="none"
       />
 
-      {/* Top Hairline Specular Edge */}
+      {/* Top Hairline Specular Edge (Apple Light-Catching Rim) */}
       <View
         style={[
           styles.specularTopLine,
@@ -153,8 +162,8 @@ export const GlassSurface: React.FC<GlassSurfaceProps> = ({
             borderTopLeftRadius: borderRadius,
             borderTopRightRadius: borderRadius,
             backgroundColor: isDark
-              ? 'rgba(255, 255, 255, 0.20)'
-              : 'rgba(255, 255, 255, 0.60)',
+              ? 'rgba(255, 255, 255, 0.45)'
+              : 'rgba(255, 255, 255, 0.95)',
           },
         ]}
         pointerEvents="none"
