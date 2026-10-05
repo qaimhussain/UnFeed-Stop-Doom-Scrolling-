@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet, AppState as RNAppState } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import {
   NavigationContainer,
@@ -134,15 +135,20 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider themeMode={themeMode} onThemeModeChange={setThemeMode}>
-        <AppContent />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.rootContainer}>
+      <SafeAreaProvider>
+        <ThemeProvider themeMode={themeMode} onThemeModeChange={setThemeMode}>
+          <AppContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  rootContainer: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     backgroundColor: '#000000',
