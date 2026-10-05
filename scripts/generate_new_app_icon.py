@@ -1,7 +1,8 @@
 import os
+import numpy as np
 from PIL import Image, ImageDraw
 
-SRC_PATH = r"C:\Users\Qaim\.gemini\antigravity-ide\brain\784215da-ae3e-4857-977d-794892ed6bce\.user_uploaded\media_1791213702004.jpg"
+SRC_PATH = r"C:\Users\Qaim\.gemini\antigravity-ide\brain\784215da-ae3e-4857-977d-794892ed6bce\.user_uploaded\media_1791224072186.jpg"
 
 if not os.path.exists(SRC_PATH):
     raise FileNotFoundError(f"Source image not found: {SRC_PATH}")
@@ -10,62 +11,60 @@ src_img = Image.open(SRC_PATH).convert("RGBA")
 w, h = src_img.size
 
 # 1. Base App Icon (1024x1024)
-icon_1024 = src_img.copy()
-icon_1024.save("assets/icon.png", format="PNG")
+src_img.save("assets/icon.png", format="PNG")
 print("Saved assets/icon.png")
 
-# Corner background color
-BG_COLOR = (42, 81, 180, 255)
+# 2. Smooth Background Gradient from 4 corners
+W, H = 1024, 1024
+tl = np.array([253, 215, 82], dtype=float)   # Yellow
+tr = np.array([252, 46, 118], dtype=float)   # Pink/Magenta
+bl = np.array([255, 56, 128], dtype=float)   # Magenta/Red
+br = np.array([80, 80, 210], dtype=float)    # Royal Blue
 
-# For adaptive icon:
-# Safe zone is central 66.6% (72/108 of diameter, or radius ~341px in 1024x1024).
-# In the original 1024 image, camera corners are at radius ~450px.
-# Scaling by 0.72 brings max radius to ~324px, completely inside the 341px safe circle!
-SCALE = 0.74
-target_w = int(w * SCALE)
-target_h = int(h * SCALE)
-scaled_src = src_img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-
-# Create radial mask for smooth blend into background color so there are no hard edges
-mask = Image.new("L", (target_w, target_h), 255)
-mask_draw = ImageDraw.Draw(mask)
-cx, cy = target_w / 2, target_h / 2
-max_radius = min(cx, cy)
-for y in range(target_h):
-    for x in range(target_w):
-        r = ((x - cx)**2 + (y - cy)**2)**0.5
-        if r > max_radius * 0.82:
-            # smooth feather out
-            fade = max(0.0, min(1.0, 1.0 - (r - max_radius * 0.82) / (max_radius * 0.18)))
-            mask.putpixel((x, y), int(fade * 255))
-
-scaled_src.putalpha(mask)
-
-# Adaptive Icon (1024x1024)
-adaptive_icon = Image.new("RGBA", (1024, 1024), BG_COLOR)
-offset_x = (1024 - target_w) // 2
-offset_y = (1024 - target_h) // 2
-adaptive_icon.paste(scaled_src, (offset_x, offset_y), scaled_src)
-adaptive_icon.save("assets/adaptive-icon.png", format="PNG")
-print("Saved assets/adaptive-icon.png")
-
-# Foreground layer for Android adaptive icon (transparent background with centered logo)
-fg_1024 = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
-fg_1024.paste(scaled_src, (offset_x, offset_y), scaled_src)
-fg_1024.save("assets/android-icon-foreground.png", format="PNG")
-print("Saved assets/android-icon-foreground.png")
-
-# Background layer
-bg_1024 = Image.new("RGBA", (1024, 1024), BG_COLOR)
+u = np.linspace(0, 1, W)[None, :, None]
+v = np.linspace(0, 1, H)[:, None, None]
+bg = (1 - v) * ((1 - u) * tl + u * tr) + v * ((1 - u) * bl + u * br)
+bg_1024 = Image.fromarray(np.clip(bg, 0, 255).astype(np.uint8)).convert("RGBA")
 bg_1024.save("assets/android-icon-background.png", format="PNG")
 print("Saved assets/android-icon-background.png")
 
-# Favicon
+# 3. Extract crisp white logo with antialiasing for Foreground Layer
+arr = np.array(src_img, dtype=float)
+min_rgb = np.min(arr[:, :, :3], axis=2)
+alpha = np.clip((min_rgb - 160.0) / (230.0 - 160.0), 0.0, 1.0) * 255.0
+
+fg_arr = np.zeros((1024, 1024, 4), dtype=np.uint8)
+fg_arr[:, :, :3] = 255
+fg_arr[:, :, 3] = alpha.astype(np.uint8)
+fg_base = Image.fromarray(fg_arr, mode="RGBA")
+
+# Safe zone scale (0.67 brings 752px box down to ~503px, well inside 682px safe diameter)
+SCALE = 0.67
+tw, th = int(1024 * SCALE), int(1024 * SCALE)
+fg_scaled = fg_base.resize((tw, th), Image.Resampling.LANCZOS)
+
+fg_1024 = Image.new("RGBA", (1024, 1024), (0, 0, 0, 0))
+ox = (1024 - tw) // 2
+oy = (1024 - th) // 2
+fg_1024.paste(fg_scaled, (ox, oy), fg_scaled)
+fg_1024.save("assets/android-icon-foreground.png", format="PNG")
+print("Saved assets/android-icon-foreground.png")
+
+# Monochrome icon (for Material You themed icons)
+fg_1024.save("assets/android-icon-monochrome.png", format="PNG")
+print("Saved assets/android-icon-monochrome.png")
+
+# 4. Composite Adaptive Icon
+adaptive_icon = Image.alpha_composite(bg_1024, fg_1024)
+adaptive_icon.save("assets/adaptive-icon.png", format="PNG")
+print("Saved assets/adaptive-icon.png")
+
+# 5. Favicon
 favicon = adaptive_icon.resize((48, 48), Image.Resampling.LANCZOS)
 favicon.save("assets/favicon.png", format="PNG")
 print("Saved assets/favicon.png")
 
-# Android native mipmaps
+# 6. Android Native Mipmaps
 MIPMAPS = [
     ("mipmap-mdpi", 48, 108),
     ("mipmap-hdpi", 72, 162),
@@ -97,5 +96,8 @@ for folder, legacy_size, adaptive_size in MIPMAPS:
     # 4. ic_launcher_background.webp (adaptive background)
     bg_adaptive = bg_1024.resize((adaptive_size, adaptive_size), Image.Resampling.LANCZOS)
     bg_adaptive.save(os.path.join(target_dir, "ic_launcher_background.webp"), format="WEBP", quality=95)
+
+    # 5. ic_launcher_monochrome.webp (adaptive monochrome)
+    fg_adaptive.save(os.path.join(target_dir, "ic_launcher_monochrome.webp"), format="WEBP", quality=95)
 
 print("All Android native mipmaps successfully generated!")

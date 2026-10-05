@@ -5,8 +5,6 @@ import {
   RefreshControl,
   StyleSheet,
   StatusBar,
-  Text,
-  TouchableOpacity,
   Alert,
   Platform,
 } from 'react-native';
@@ -16,16 +14,15 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
-import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
+import { CrystalGlass } from '../components/common/CrystalGlass';
+import { UnfeedCrystalWordmark } from '../components/common/UnfeedCrystalWordmark';
 import { SearchBar } from '../components/common/SearchBar';
 import { CaughtUpNotice } from '../components/common/CaughtUpNotice';
-import { ChatSkeletonRow } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
 import { NotesBar } from '../components/messages/NotesBar';
 import { ConversationItem } from '../components/messages/ConversationItem';
 import { ShortNoteModal } from '../components/notes/ShortNoteModal';
 import { StoryViewerModal } from '../components/stories/StoryViewerModal';
-import { SessionTimerIndicator } from '../components/focus/SessionTimerIndicator';
 import { storyTimeService } from '../services/storyTimeService';
 import { InstagramWebView } from '../components/webview/InstagramWebView';
 import { INSTAGRAM_CONFIG } from '../config/instagramRules';
@@ -37,7 +34,7 @@ interface MessagesScreenProps {
 
 export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { colors, typography, isDark } = useTheme();
+  const { colors, isDark } = useTheme();
   const currentUser = useAppStore((state) => state.currentUser);
   const userNote = useAppStore((state) => state.userNote);
   const contacts = useAppStore((state) => state.contacts);
@@ -132,18 +129,26 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-        {/* Minimal Clean Top Bar */}
-        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
-          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.headerIconButton}
-            onPress={handleOpenSettings}
-            accessibilityLabel="Settings"
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        {/* Crystal Glass Top Header Bar */}
+        <View style={styles.realHeader}>
+          {/* Top Left: Crystal Wordmark on CrystalGlass Pill */}
+          <CrystalGlass
+            borderRadius={18}
+            style={styles.headerWordmarkPill}
+            contentStyle={styles.headerWordmarkContent}
           >
-            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
-          </TouchableOpacity>
+            <UnfeedCrystalWordmark fontSize={24} align="left" loopShine={false} />
+          </CrystalGlass>
+
+          {/* Top Right: Crystal Settings Button (touch target >= 48dp) */}
+          <CrystalGlass
+            borderRadius={24}
+            onPress={handleOpenSettings}
+            style={styles.headerGlassButton}
+            contentStyle={styles.headerIconButton}
+          >
+            <Ionicons name="settings-outline" size={21} color={colors.textPrimary} />
+          </CrystalGlass>
         </View>
 
         {/* Real Instagram Messages WebView */}
@@ -293,12 +298,26 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   realHeader: {
-    height: 48,
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 4,
+  },
+  headerWordmarkPill: {
+    alignSelf: 'center',
+  },
+  headerWordmarkContent: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerGlassButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
   },
   wordmark: {
     fontSize: 26,

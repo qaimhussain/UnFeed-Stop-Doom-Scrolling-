@@ -35,7 +35,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { GlassSurface } from '../focus/GlassSurface';
+import { CrystalGlass } from '../common/CrystalGlass';
 import { useTheme } from '../../theme/ThemeContext';
 import { useAppStore } from '../../store/useAppStore';
 import { storyTimeService } from '../../services/storyTimeService';
@@ -173,18 +173,14 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
       ]}
       pointerEvents="box-none"
     >
-      <GlassSurface
+      <CrystalGlass
         useRealBlur={!reduceEffects}
-        blurIntensity={isDark ? 50 : 35}
-        borderRadius={25}
-        elevation={6}
+        blurIntensity={isDark ? 45 : 35}
+        borderRadius={26}
         style={[
           styles.container,
           {
             width: containerWidth,
-            backgroundColor: reduceEffects
-              ? isDark ? '#1C1C1E' : '#FFFFFF'
-              : undefined,
           },
         ]}
       >
@@ -248,7 +244,7 @@ export const FloatingGlassTabBar: React.FC<BottomTabBarProps> = ({
             );
           })}
         </View>
-      </GlassSurface>
+      </CrystalGlass>
     </Animated.View>
   );
 };

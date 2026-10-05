@@ -9,7 +9,10 @@ import {
 } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
+import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, GrandHotel_400Regular } from '@expo-google-fonts/grand-hotel';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 import { useAppStore } from './src/store/useAppStore';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -114,6 +117,12 @@ export default function App() {
       clearInterval(storyInterval);
     };
   }, []);
+
+  useEffect(() => {
+    if (isInitialized && fontsLoaded) {
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isInitialized, fontsLoaded]);
 
   if (!isInitialized || !fontsLoaded) {
     return (
