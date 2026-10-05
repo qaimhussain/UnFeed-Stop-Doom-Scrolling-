@@ -244,9 +244,9 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   }, [activeCard]);
 
   // Animated values for 3 overlapping deck positions:
-  // Slot 0 (Front): Y = 0, scale = 1.0, opacity = 1.0
-  // Slot 1 (Middle - 50% overlap): Y = 50, scale = 0.95, opacity = 0.72
-  // Slot 2 (Back - 50% overlap): Y = 96, scale = 0.90, opacity = 0.44
+  // Slot 0 (Front / Active): Y = 0, scale = 1.0, opacity = 1.0
+  // Slot 1 (Middle / Peek): Y = 18, scale = 0.94, opacity = 0.75
+  // Slot 2 (Back / Deep Peek): Y = 34, scale = 0.88, opacity = 0.45
   const [cardAnims] = useState(() => [
     {
       y: new Animated.Value(0),
@@ -254,14 +254,14 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       opacity: new Animated.Value(1),
     },
     {
-      y: new Animated.Value(50),
-      scale: new Animated.Value(0.95),
-      opacity: new Animated.Value(0.72),
+      y: new Animated.Value(18),
+      scale: new Animated.Value(0.94),
+      opacity: new Animated.Value(0.75),
     },
     {
-      y: new Animated.Value(96),
-      scale: new Animated.Value(0.90),
-      opacity: new Animated.Value(0.44),
+      y: new Animated.Value(34),
+      scale: new Animated.Value(0.88),
+      opacity: new Animated.Value(0.45),
     },
   ]);
 
@@ -276,13 +276,13 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
     const third = (current + 2) % CAROUSEL_BENEFITS.length;
 
     // Fluid card shuffle animation:
-    // Front card floats up and fades
+    // Front card floats up with gentle lift & fades away
     // Next card springs up from slot 1 to slot 0 (front)
     // Third card springs up from slot 2 to slot 1 (middle)
     Animated.parallel([
       Animated.timing(cardAnims[current].y, {
-        toValue: -34,
-        duration: 220,
+        toValue: -32,
+        duration: 240,
         useNativeDriver: true,
       }),
       Animated.timing(cardAnims[current].opacity, {
@@ -291,20 +291,20 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
         useNativeDriver: true,
       }),
       Animated.timing(cardAnims[current].scale, {
-        toValue: 0.92,
-        duration: 220,
+        toValue: 0.94,
+        duration: 240,
         useNativeDriver: true,
       }),
 
       Animated.spring(cardAnims[next].y, {
         toValue: 0,
-        tension: 65,
+        tension: 70,
         friction: 9,
         useNativeDriver: true,
       }),
       Animated.spring(cardAnims[next].scale, {
         toValue: 1.0,
-        tension: 65,
+        tension: 70,
         friction: 9,
         useNativeDriver: true,
       }),
@@ -315,28 +315,28 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       }),
 
       Animated.spring(cardAnims[third].y, {
-        toValue: 50,
-        tension: 65,
+        toValue: 18,
+        tension: 70,
         friction: 9,
         useNativeDriver: true,
       }),
       Animated.spring(cardAnims[third].scale, {
-        toValue: 0.95,
-        tension: 65,
+        toValue: 0.94,
+        tension: 70,
         friction: 9,
         useNativeDriver: true,
       }),
       Animated.timing(cardAnims[third].opacity, {
-        toValue: 0.72,
+        toValue: 0.75,
         duration: 250,
         useNativeDriver: true,
       }),
     ]).start(() => {
-      // Outgoing card resets to slot 2 (back position)
-      cardAnims[current].y.setValue(96);
-      cardAnims[current].scale.setValue(0.90);
+      // Outgoing card resets behind into slot 2
+      cardAnims[current].y.setValue(34);
+      cardAnims[current].scale.setValue(0.88);
       Animated.timing(cardAnims[current].opacity, {
-        toValue: 0.44,
+        toValue: 0.45,
         duration: 200,
         useNativeDriver: true,
       }).start(() => {
@@ -346,11 +346,11 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
     });
   }, [cardAnims]);
 
-  // Automatically cycle through cards every 3.2 seconds
+  // Automatically cycle through cards every 3.4 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       cycleToNextCard();
-    }, 3200);
+    }, 3400);
     return () => clearInterval(timer);
   }, [cycleToNextCard]);
 
@@ -406,7 +406,7 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           </Text>
         </View>
 
-        {/* Overlapping Half-Half Auto-Playing Benefit Card Deck */}
+        {/* Overlapping 3D Benefit Card Deck */}
         <View style={styles.deckSection}>
           <TouchableOpacity
             activeOpacity={0.96}
@@ -439,64 +439,131 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
                     },
                   ]}
                 >
-                  <GlassSurface
-                    useRealBlur={true}
-                    blurIntensity={isDark ? 60 : 35}
-                    borderRadius={22}
-                    elevation={isFront ? (isDark ? 8 : 4) : 2}
-                    highlightIntensity={isFront ? (isDark ? 0.22 : 0.12) : 0.08}
+                  <View
                     style={[
-                      styles.benefitCardSurface,
-                      isFront && {
-                        borderColor: isDark ? 'rgba(255, 255, 255, 0.40)' : 'rgba(255, 255, 255, 0.95)',
+                      styles.benefitCard,
+                      {
+                        backgroundColor: isDark ? '#14141E' : '#FFFFFF',
+                        borderColor: isFront
+                          ? (isDark ? 'rgba(255, 255, 255, 0.24)' : 'rgba(0, 0, 0, 0.08)')
+                          : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.04)'),
+                        shadowOpacity: isFront ? (isDark ? 0.60 : 0.12) : 0.20,
+                        elevation: isFront ? 8 : 2,
                       },
                     ]}
                   >
+                    {/* Top specular reflection hairline */}
+                    <View
+                      style={[
+                        styles.cardSpecularHairline,
+                        {
+                          backgroundColor: isDark
+                            ? 'rgba(255, 255, 255, 0.35)'
+                            : 'rgba(255, 255, 255, 0.90)',
+                        },
+                      ]}
+                      pointerEvents="none"
+                    />
+
+                    {/* Prismatic gradient highlight */}
+                    <LinearGradient
+                      colors={
+                        isDark
+                          ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.0)']
+                          : ['rgba(255, 255, 255, 0.40)', 'rgba(255, 255, 255, 0.0)']
+                      }
+                      start={{ x: 0.5, y: 0 }}
+                      end={{ x: 0.5, y: 0.6 }}
+                      style={StyleSheet.absoluteFill}
+                      pointerEvents="none"
+                    />
+
+                    {/* Card Content (Header & Description) */}
                     <View style={styles.cardHeaderRow}>
-                      <LinearGradient
-                        colors={benefit.gradient}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.cardIconWrap}
+                      <View style={styles.cardHeaderLeft}>
+                        <LinearGradient
+                          colors={benefit.gradient}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 1 }}
+                          style={[styles.cardIconWrap, { shadowColor: benefit.gradient[0] }]}
+                        >
+                          <Ionicons
+                            name={benefit.icon as any}
+                            size={19}
+                            color="#FFFFFF"
+                          />
+                        </LinearGradient>
+                        <Text
+                          style={[
+                            styles.cardTitle,
+                            { color: isDark ? '#FFFFFF' : '#111111' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {benefit.title}
+                        </Text>
+                      </View>
+
+                      {/* Step Badge */}
+                      <View
+                        style={[
+                          styles.stepBadge,
+                          {
+                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)',
+                          },
+                        ]}
                       >
-                        <Ionicons
-                          name={benefit.icon as any}
-                          size={18}
-                          color="#FFFFFF"
-                        />
-                      </LinearGradient>
-                      <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>
-                        {benefit.title}
-                      </Text>
+                        <Text
+                          style={[
+                            styles.stepBadgeText,
+                            { color: isDark ? 'rgba(255, 255, 255, 0.70)' : 'rgba(0, 0, 0, 0.55)' },
+                          ]}
+                        >
+                          {`0${idx + 1} / 03`}
+                        </Text>
+                      </View>
                     </View>
 
+                    {/* Description: ONLY visible on front card, perfectly crisp */}
                     <Text
                       numberOfLines={2}
                       style={[
                         styles.cardDesc,
-                        { color: isFront ? colors.textSecondary : colors.textTertiary },
+                        {
+                          color: isDark ? '#A6AAB8' : '#555560',
+                          opacity: isFront ? 1 : 0,
+                        },
                       ]}
                     >
                       {benefit.desc}
                     </Text>
-                  </GlassSurface>
+
+                    {/* Peeking bottom rim accent glow */}
+                    <LinearGradient
+                      colors={benefit.gradient}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.cardBottomAccentGlow}
+                    />
+                  </View>
                 </Animated.View>
               );
             })}
           </TouchableOpacity>
 
-          {/* Clean Pagination Progress Dots */}
+          {/* Clean Segmented Pagination Dots */}
           <View style={styles.paginationDotsRow}>
-            {CAROUSEL_BENEFITS.map((_, idx) => (
+            {CAROUSEL_BENEFITS.map((b, idx) => (
               <View
                 key={idx}
                 style={[
                   styles.dot,
                   idx === activeCard
-                    ? [styles.activeDot, { backgroundColor: colors.accent }]
+                    ? [styles.activeDot, { backgroundColor: b.gradient[0] }]
                     : [
                         styles.inactiveDot,
-                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(0, 0, 0, 0.16)' },
+                        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.15)' },
                       ],
                 ]}
               />
@@ -684,7 +751,7 @@ const styles = StyleSheet.create({
   },
   cardDeckContainer: {
     width: '100%',
-    height: 205,
+    height: 180,
     position: 'relative',
     alignItems: 'center',
   },
@@ -695,47 +762,92 @@ const styles = StyleSheet.create({
     right: 0,
     width: '100%',
   },
-  benefitCardSurface: {
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    minHeight: 104,
+  benefitCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    minHeight: 128,
+    overflow: 'hidden',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowRadius: 18,
+  },
+  cardSpecularHairline: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 1,
   },
   cardHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  cardHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: 8,
   },
   cardIconWrap: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 13,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardTitle: {
-    fontSize: 16,
+    fontSize: 16.5,
     fontWeight: '700',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    flex: 1,
+  },
+  stepBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    borderWidth: 0.5,
+  },
+  stepBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
   cardDesc: {
-    fontSize: 13,
-    lineHeight: 18,
-    paddingLeft: 48,
+    fontSize: 13.5,
+    lineHeight: 19.5,
+    letterSpacing: 0.1,
+  },
+  cardBottomAccentGlow: {
+    position: 'absolute',
+    bottom: 0,
+    left: 24,
+    right: 24,
+    height: 2.5,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
   },
   paginationDotsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 12,
   },
   dot: {
-    height: 6,
-    borderRadius: 3,
+    height: 5,
+    borderRadius: 2.5,
     marginHorizontal: 3,
   },
   activeDot: {
-    width: 22,
+    width: 24,
   },
   inactiveDot: {
     width: 6,
