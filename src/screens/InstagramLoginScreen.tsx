@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
   Animated,
+  Easing,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -237,120 +238,39 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   const orb3Color = isDark ? 'rgba(79, 91, 213, 0.12)' : 'rgba(79, 91, 213, 0.06)';
 
   const [activeCard, setActiveCard] = useState(0);
-  const activeCardRef = useRef(0);
-
-  useEffect(() => {
-    activeCardRef.current = activeCard;
-  }, [activeCard]);
-
-  // Animated values for 3 overlapping deck positions:
-  // Slot 0 (Front / Active): Y = 0, scale = 1.0, opacity = 1.0
-  // Slot 1 (Middle / Peek): Y = 18, scale = 0.94, opacity = 0.75
-  // Slot 2 (Back / Deep Peek): Y = 34, scale = 0.88, opacity = 0.45
-  const [cardAnims] = useState(() => [
-    {
-      y: new Animated.Value(0),
-      scale: new Animated.Value(1),
-      opacity: new Animated.Value(1),
-    },
-    {
-      y: new Animated.Value(18),
-      scale: new Animated.Value(0.94),
-      opacity: new Animated.Value(0.75),
-    },
-    {
-      y: new Animated.Value(34),
-      scale: new Animated.Value(0.88),
-      opacity: new Animated.Value(0.45),
-    },
-  ]);
-
+  const [transitionAnim] = useState(() => new Animated.Value(0));
   const isTransitioning = useRef(false);
 
   const cycleToNextCard = useCallback(() => {
     if (isTransitioning.current) return;
     isTransitioning.current = true;
 
-    const current = activeCardRef.current;
-    const next = (current + 1) % CAROUSEL_BENEFITS.length;
-    const third = (current + 2) % CAROUSEL_BENEFITS.length;
-
-    // Fluid card shuffle animation:
-    // Front card floats up with gentle lift & fades away
-    // Next card springs up from slot 1 to slot 0 (front)
-    // Third card springs up from slot 2 to slot 1 (middle)
-    Animated.parallel([
-      Animated.timing(cardAnims[current].y, {
-        toValue: -32,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardAnims[current].opacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardAnims[current].scale, {
-        toValue: 0.94,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-
-      Animated.spring(cardAnims[next].y, {
-        toValue: 0,
-        tension: 70,
-        friction: 9,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardAnims[next].scale, {
-        toValue: 1.0,
-        tension: 70,
-        friction: 9,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardAnims[next].opacity, {
-        toValue: 1.0,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-
-      Animated.spring(cardAnims[third].y, {
-        toValue: 18,
-        tension: 70,
-        friction: 9,
-        useNativeDriver: true,
-      }),
-      Animated.spring(cardAnims[third].scale, {
-        toValue: 0.94,
-        tension: 70,
-        friction: 9,
-        useNativeDriver: true,
-      }),
-      Animated.timing(cardAnims[third].opacity, {
-        toValue: 0.75,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      // Outgoing card resets behind into slot 2
-      cardAnims[current].y.setValue(34);
-      cardAnims[current].scale.setValue(0.88);
-      Animated.timing(cardAnims[current].opacity, {
-        toValue: 0.45,
-        duration: 200,
-        useNativeDriver: true,
-      }).start(() => {
-        setActiveCard(next);
-        isTransitioning.current = false;
-      });
+    Animated.timing(transitionAnim, {
+      toValue: 1,
+      duration: 440,
+      easing: Easing.bezier(0.25, 0.1, 0.25, 1),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      transitionAnim.setValue(0);
+      setActiveCard((prev) => (prev + 1) % CAROUSEL_BENEFITS.length);
+      isTransitioning.current = false;
     });
-  }, [cardAnims]);
 
-  // Automatically cycle through cards every 3.4 seconds
+    // Safety watchdog: guarantees isTransitioning is NEVER stuck
+    setTimeout(() => {
+      if (isTransitioning.current) {
+        transitionAnim.setValue(0);
+        setActiveCard((prev) => (prev + 1) % CAROUSEL_BENEFITS.length);
+        isTransitioning.current = false;
+      }
+    }, 550);
+  }, [transitionAnim]);
+
+  // Automatically cycle through cards every 3.6 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       cycleToNextCard();
-    }, 3400);
+    }, 3600);
     return () => clearInterval(timer);
   }, [cycleToNextCard]);
 
@@ -420,124 +340,189 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
           >
             {CAROUSEL_BENEFITS.map((benefit, idx) => {
               const relSlot = (idx - activeCard + CAROUSEL_BENEFITS.length) % CAROUSEL_BENEFITS.length;
-              const isFront = relSlot === 0;
-              const isMid = relSlot === 1;
+
+              // iOS Notification Deck Spring Interpolations
+              let translateY: Animated.AnimatedInterpolation<number>;
+              let scale: Animated.AnimatedInterpolation<number>;
+              let opacity: Animated.AnimatedInterpolation<number>;
+              let contentOpacity: Animated.AnimatedInterpolation<number> | number;
+              let zIndex = 1;
+              let elevation = 1;
+
+              if (relSlot === 0) {
+                zIndex = 10;
+                elevation = 8;
+                translateY = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, -36],
+                });
+                scale = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [1.0, 0.96],
+                });
+                opacity = transitionAnim.interpolate({
+                  inputRange: [0, 0.7, 1],
+                  outputRange: [1.0, 0.2, 0.0],
+                });
+                contentOpacity = transitionAnim.interpolate({
+                  inputRange: [0, 0.4],
+                  outputRange: [1, 0],
+                  extrapolate: 'clamp',
+                });
+              } else if (relSlot === 1) {
+                zIndex = 5;
+                elevation = 4;
+                translateY = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [15, 0],
+                });
+                scale = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.94, 1.0],
+                });
+                opacity = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.82, 1.0],
+                });
+                contentOpacity = transitionAnim.interpolate({
+                  inputRange: [0.35, 0.9],
+                  outputRange: [0, 1],
+                  extrapolate: 'clamp',
+                });
+              } else {
+                // relSlot === 2
+                zIndex = 1;
+                elevation = 1;
+                translateY = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [28, 15],
+                });
+                scale = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.88, 0.94],
+                });
+                opacity = transitionAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.52, 0.82],
+                });
+                contentOpacity = 0;
+              }
 
               return (
                 <Animated.View
                   key={benefit.title}
-                  pointerEvents={isFront ? 'auto' : 'none'}
+                  pointerEvents={relSlot === 0 ? 'auto' : 'none'}
                   style={[
                     styles.stackedCardWrapper,
                     {
-                      zIndex: isFront ? 10 : isMid ? 5 : 1,
-                      opacity: cardAnims[idx].opacity,
-                      transform: [
-                        { translateY: cardAnims[idx].y },
-                        { scale: cardAnims[idx].scale },
-                      ],
+                      zIndex,
+                      elevation,
+                      opacity,
+                      transform: [{ translateY }, { scale }],
                     },
                   ]}
                 >
                   <View
                     style={[
-                      styles.benefitCard,
+                      styles.notificationCard,
                       {
-                        backgroundColor: isDark ? '#14141E' : '#FFFFFF',
-                        borderColor: isFront
-                          ? (isDark ? 'rgba(255, 255, 255, 0.24)' : 'rgba(0, 0, 0, 0.08)')
-                          : (isDark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.04)'),
-                        shadowOpacity: isFront ? (isDark ? 0.60 : 0.12) : 0.20,
-                        elevation: isFront ? 8 : 2,
+                        backgroundColor: isDark
+                          ? 'rgba(26, 28, 42, 0.82)'
+                          : 'rgba(255, 255, 255, 0.86)',
+                        borderColor: isDark
+                          ? 'rgba(255, 255, 255, 0.16)'
+                          : 'rgba(0, 0, 0, 0.08)',
+                        shadowOpacity: isDark ? 0.40 : 0.10,
                       },
                     ]}
                   >
-                    {/* Top specular reflection hairline */}
+                    {/* Top specular hairline (Apple crystal gloss) */}
                     <View
                       style={[
                         styles.cardSpecularHairline,
                         {
                           backgroundColor: isDark
-                            ? 'rgba(255, 255, 255, 0.35)'
+                            ? 'rgba(255, 255, 255, 0.38)'
                             : 'rgba(255, 255, 255, 0.90)',
                         },
                       ]}
                       pointerEvents="none"
                     />
 
-                    {/* Prismatic gradient highlight */}
+                    {/* Apple Gloss reflection gradient */}
                     <LinearGradient
                       colors={
                         isDark
-                          ? ['rgba(255, 255, 255, 0.08)', 'rgba(255, 255, 255, 0.0)']
-                          : ['rgba(255, 255, 255, 0.40)', 'rgba(255, 255, 255, 0.0)']
+                          ? ['rgba(255, 255, 255, 0.12)', 'rgba(255, 255, 255, 0.01)']
+                          : ['rgba(255, 255, 255, 0.45)', 'rgba(255, 255, 255, 0.05)']
                       }
                       start={{ x: 0.5, y: 0 }}
-                      end={{ x: 0.5, y: 0.6 }}
+                      end={{ x: 0.5, y: 0.7 }}
                       style={StyleSheet.absoluteFill}
                       pointerEvents="none"
                     />
 
-                    {/* Card Content (Header & Description) */}
-                    <View style={styles.cardHeaderRow}>
-                      <View style={styles.cardHeaderLeft}>
+                    {/* iOS Notification Header: App Icon + UNFEED + Timestamp */}
+                    <View style={styles.notificationHeaderRow}>
+                      <View style={styles.notificationHeaderLeft}>
                         <LinearGradient
                           colors={benefit.gradient}
                           start={{ x: 0, y: 0 }}
                           end={{ x: 1, y: 1 }}
-                          style={[styles.cardIconWrap, { shadowColor: benefit.gradient[0] }]}
+                          style={styles.notificationAppIcon}
                         >
                           <Ionicons
                             name={benefit.icon as any}
-                            size={19}
+                            size={13}
                             color="#FFFFFF"
                           />
                         </LinearGradient>
                         <Text
                           style={[
-                            styles.cardTitle,
-                            { color: isDark ? '#FFFFFF' : '#111111' },
+                            styles.notificationAppLabel,
+                            { color: isDark ? 'rgba(255, 255, 255, 0.60)' : 'rgba(0, 0, 0, 0.52)' },
                           ]}
-                          numberOfLines={1}
                         >
-                          {benefit.title}
+                          UNFEED
                         </Text>
                       </View>
 
-                      {/* Step Badge */}
-                      <View
+                      <Text
                         style={[
-                          styles.stepBadge,
-                          {
-                            backgroundColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-                            borderColor: isDark ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.08)',
-                          },
+                          styles.notificationTimeLabel,
+                          { color: isDark ? 'rgba(255, 255, 255, 0.45)' : 'rgba(0, 0, 0, 0.42)' },
                         ]}
                       >
-                        <Text
-                          style={[
-                            styles.stepBadgeText,
-                            { color: isDark ? 'rgba(255, 255, 255, 0.70)' : 'rgba(0, 0, 0, 0.55)' },
-                          ]}
-                        >
-                          {`0${idx + 1} / 03`}
-                        </Text>
-                      </View>
+                        {`now • 0${idx + 1}/03`}
+                      </Text>
                     </View>
 
-                    {/* Description: ONLY visible on front card, perfectly crisp */}
-                    <Text
-                      numberOfLines={2}
+                    {/* Notification Content: Title & Description */}
+                    <Animated.View
                       style={[
-                        styles.cardDesc,
-                        {
-                          color: isDark ? '#A6AAB8' : '#555560',
-                          opacity: isFront ? 1 : 0,
-                        },
+                        styles.notificationContent,
+                        { opacity: contentOpacity },
                       ]}
                     >
-                      {benefit.desc}
-                    </Text>
+                      <Text
+                        style={[
+                          styles.notificationTitle,
+                          { color: isDark ? '#FFFFFF' : '#111111' },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {benefit.title}
+                      </Text>
+                      <Text
+                        numberOfLines={2}
+                        style={[
+                          styles.notificationDesc,
+                          { color: isDark ? 'rgba(255, 255, 255, 0.82)' : 'rgba(0, 0, 0, 0.72)' },
+                        ]}
+                      >
+                        {benefit.desc}
+                      </Text>
+                    </Animated.View>
 
                     {/* Peeking bottom rim accent glow */}
                     <LinearGradient
@@ -720,14 +705,14 @@ const styles = StyleSheet.create({
   },
   mainContent: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
     justifyContent: 'space-between',
-    paddingTop: 20,
-    paddingBottom: 28,
+    paddingTop: 16,
+    paddingBottom: 24,
   },
   heroSection: {
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
   },
   tagline: {
     fontSize: 17,
@@ -741,17 +726,17 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 5,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     letterSpacing: 0.1,
   },
   deckSection: {
-    marginVertical: 14,
+    marginVertical: 20,
     alignItems: 'center',
     width: '100%',
   },
   cardDeckContainer: {
     width: '100%',
-    height: 180,
+    height: 198,
     position: 'relative',
     alignItems: 'center',
   },
@@ -762,12 +747,12 @@ const styles = StyleSheet.create({
     right: 0,
     width: '100%',
   },
-  benefitCard: {
-    borderRadius: 24,
+  notificationCard: {
+    borderRadius: 22,
     borderWidth: 1,
-    paddingHorizontal: 20,
-    paddingVertical: 18,
-    minHeight: 128,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    minHeight: 136,
     overflow: 'hidden',
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
@@ -780,57 +765,58 @@ const styles = StyleSheet.create({
     right: 0,
     height: 1,
   },
-  cardHeaderRow: {
+  notificationHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  cardHeaderLeft: {
+  notificationHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    marginRight: 8,
   },
-  cardIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
+  notificationAppIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 4,
+    marginRight: 8,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  cardTitle: {
-    fontSize: 16.5,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-    flex: 1,
-  },
-  stepBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 10,
-    borderWidth: 0.5,
-  },
-  stepBadgeText: {
+  notificationAppLabel: {
     fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
-  cardDesc: {
-    fontSize: 13.5,
-    lineHeight: 19.5,
+  notificationTimeLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
+  notificationContent: {
+    paddingLeft: 30,
+    marginTop: 2,
+  },
+  notificationTitle: {
+    fontSize: 15.5,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 3,
+  },
+  notificationDesc: {
+    fontSize: 13,
+    lineHeight: 18.5,
     letterSpacing: 0.1,
   },
   cardBottomAccentGlow: {
     position: 'absolute',
     bottom: 0,
-    left: 24,
-    right: 24,
+    left: 20,
+    right: 20,
     height: 2.5,
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
@@ -839,7 +825,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 12,
+    marginTop: 16,
   },
   dot: {
     height: 5,
@@ -854,16 +840,18 @@ const styles = StyleSheet.create({
   },
   actionSection: {
     alignItems: 'center',
+    width: '100%',
   },
   loginButtonWrapper: {
     borderRadius: 16,
     overflow: 'hidden',
+    width: '100%',
   },
   loginButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    width: SCREEN_WIDTH - 48,
+    width: '100%',
     paddingVertical: 15,
     borderRadius: 16,
     shadowColor: '#3797F0',
