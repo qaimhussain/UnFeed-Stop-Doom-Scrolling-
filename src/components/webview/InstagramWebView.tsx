@@ -107,8 +107,9 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
     setBlockedState({ isBlocked: false });
     // A cancelled load never replaced the page, so there is nothing to reload.
     if (needsRestore && webViewRef.current) {
+      const safeUrl = JSON.stringify(fallbackUrl);
       webViewRef.current.injectJavaScript(
-        `(function(){try{if(window.history.length>1){window.history.back();}else{window.location.replace("${fallbackUrl}");}}catch(e){window.location.replace("${fallbackUrl}");}})();true;`
+        `(function(){try{if(window.history.length>1){window.history.back();}else{window.location.replace(${safeUrl});}}catch(e){window.location.replace(${safeUrl});}})();true;`
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,8 +135,9 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
           webViewRef.current.goBack();
           return true;
         } else if (webViewRef.current) {
+          const safeUrl = JSON.stringify(fallbackUrl);
           webViewRef.current.injectJavaScript(
-            `window.location.href = "${fallbackUrl}"; true;`
+            `window.location.href = ${safeUrl}; true;`
           );
           return true;
         }
@@ -423,6 +425,11 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
                     username: username,
                     avatarUrl: avatarUrl
                   }));
+                  ${isFromSaved ? `
+                  if (username && !window.location.pathname.includes('/saved/')) {
+                    window.location.replace('/' + encodeURIComponent(username) + '/saved/');
+                  }
+                  ` : ''}
                 }
               }
               setTimeout(detectUser, 800);
@@ -443,8 +450,16 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
               setIsReelAudioMuted(!!data.isMuted);
             }
             if ((data.type === 'DETECTED_USERNAME' || data.type === 'DETECTED_USER_PROFILE') && (data.username || data.avatarUrl)) {
-              if (data.username && onUsernameDetected) onUsernameDetected(data.username);
-              useAppStore.getState().setInstagramLoggedIn(true, data.username, data.avatarUrl);
+              const cleanUsername =
+                typeof data.username === 'string'
+                  ? data.username.replace(/[^a-zA-Z0-9._]/g, '').slice(0, 30)
+                  : null;
+              const cleanAvatarUrl =
+                typeof data.avatarUrl === 'string' && (data.avatarUrl.startsWith('https://') || data.avatarUrl.startsWith('http://'))
+                  ? data.avatarUrl
+                  : null;
+              if (cleanUsername && onUsernameDetected) onUsernameDetected(cleanUsername);
+              useAppStore.getState().setInstagramLoggedIn(true, cleanUsername, cleanAvatarUrl);
             }
           } catch {}
         }}
@@ -465,6 +480,7 @@ export const InstagramWebView = React.forwardRef<WebView, InstagramWebViewProps>
           setErrorMessage(nativeEvent.description || 'Connection error');
         }}
         style={styles.webView}
+        originWhitelist={['https://*.instagram.com', 'https://*.facebook.com', 'https://instagram.com', 'https://facebook.com', 'about:blank']}
         setSupportMultipleWindows={false}
         javaScriptCanOpenWindowsAutomatically={false}
         allowsBackForwardNavigationGestures={true}

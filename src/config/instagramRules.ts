@@ -78,12 +78,16 @@ export function evaluateInstagramUrl(
   let path = url;
   try {
     const parsed = new URL(url);
+    const host = parsed.hostname.toLowerCase();
+    const isInstagramHost = host === 'instagram.com' || host.endsWith('.instagram.com');
+    const isFacebookHost = host === 'facebook.com' || host.endsWith('.facebook.com');
+
     // Allow Facebook/Meta SSO login redirects if on auth page
-    if (parsed.hostname.includes('facebook.com') && parsed.pathname.includes('login')) {
+    if (isFacebookHost && parsed.pathname.includes('login')) {
       return { isAllowed: true, category: 'login' };
     }
     // Block non-instagram domains (except login SSO)
-    if (!parsed.hostname.includes('instagram.com')) {
+    if (!isInstagramHost) {
       return { isAllowed: false, category: 'blocked_other', blockMessage: "That's the part Unfeed hides." };
     }
     path = parsed.pathname;

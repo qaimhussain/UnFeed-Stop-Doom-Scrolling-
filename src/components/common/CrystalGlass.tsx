@@ -206,7 +206,7 @@ export const CrystalGlass: React.FC<CrystalGlassProps> = ({
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
-        style={animatedStyle}
+        style={[animatedStyle, style]}
       >
         {glassContent}
       </AnimatedPressable>

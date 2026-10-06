@@ -7,6 +7,7 @@ import {
   StatusBar,
   Alert,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,8 +15,7 @@ import * as Haptics from 'expo-haptics';
 import { useTheme } from '../theme/ThemeContext';
 import { useAppStore } from '../store/useAppStore';
 import { Header } from '../components/common/Header';
-import { CrystalGlass } from '../components/common/CrystalGlass';
-import { UnfeedCrystalWordmark } from '../components/common/UnfeedCrystalWordmark';
+import { UnfeedWordmark } from '../components/common/UnfeedWordmark';
 import { SearchBar } from '../components/common/SearchBar';
 import { CaughtUpNotice } from '../components/common/CaughtUpNotice';
 import { EmptyState } from '../components/common/EmptyState';
@@ -129,26 +129,18 @@ export const MessagesScreen: React.FC<MessagesScreenProps> = ({ navigation }) =>
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
         <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
 
-        {/* Crystal Glass Top Header Bar */}
-        <View style={styles.realHeader}>
-          {/* Top Left: Crystal Wordmark on CrystalGlass Pill */}
-          <CrystalGlass
-            borderRadius={18}
-            style={styles.headerWordmarkPill}
-            contentStyle={styles.headerWordmarkContent}
-          >
-            <UnfeedCrystalWordmark fontSize={24} align="left" loopShine={false} />
-          </CrystalGlass>
-
-          {/* Top Right: Crystal Settings Button (touch target >= 48dp) */}
-          <CrystalGlass
-            borderRadius={24}
+        {/* Minimal Clean Top Bar */}
+        <View style={[styles.realHeader, { borderBottomColor: colors.divider }]}>
+          <UnfeedWordmark fontSize={32} useGradient={true} align="left" />
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.headerIconButton}
             onPress={handleOpenSettings}
-            style={styles.headerGlassButton}
-            contentStyle={styles.headerIconButton}
+            accessibilityLabel="Settings"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Ionicons name="settings-outline" size={21} color={colors.textPrimary} />
-          </CrystalGlass>
+            <Ionicons name="settings-outline" size={22} color={colors.textPrimary} />
+          </TouchableOpacity>
         </View>
 
         {/* Real Instagram Messages WebView */}
@@ -298,26 +290,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   realHeader: {
-    height: 56,
+    height: 48,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 4,
-  },
-  headerWordmarkPill: {
-    alignSelf: 'center',
-  },
-  headerWordmarkContent: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerGlassButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   wordmark: {
     fontSize: 26,
@@ -326,11 +304,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
   headerIconButton: {
-    width: 48,
-    height: 48,
+    width: 44,
+    height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
   },
   realWebViewContainer: {
     flex: 1,

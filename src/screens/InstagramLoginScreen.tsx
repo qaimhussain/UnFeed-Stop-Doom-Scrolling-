@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+/* eslint-disable react-hooks/immutability */
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   StatusBar,
   Modal,
   ActivityIndicator,
@@ -20,24 +22,52 @@ import Animated, {
   useAnimatedStyle,
   withDelay,
   withTiming,
-  withRepeat,
-  withSequence,
+  withSpring,
   Easing,
   interpolate,
   useReducedMotion,
-  cancelAnimation,
 } from 'react-native-reanimated';
-import { AuroraBackground } from '../components/common/AuroraBackground';
-import { CrystalGlass } from '../components/common/CrystalGlass';
+import { StaticRadialBackground } from '../components/common/StaticRadialBackground';
 import { UnfeedCrystalWordmark } from '../components/common/UnfeedCrystalWordmark';
-import { WelcomeCarousel } from '../components/welcome/WelcomeCarousel';
-import { useTheme } from '../theme/ThemeContext';
+import { PrismalLiquidGlass } from '../components/common/PrismalLiquidGlass';
 import { useAppStore } from '../store/useAppStore';
 import { INSTAGRAM_CONFIG } from '../config/instagramRules';
 
 interface InstagramLoginScreenProps {
   onSuccess?: () => void;
 }
+
+interface FeatureItem {
+  id: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  gradient: readonly [string, string];
+  title: string;
+  subtitle: string;
+}
+
+const FEATURE_ITEMS: readonly FeatureItem[] = [
+  {
+    id: 'always-open',
+    icon: 'chatbubbles-outline',
+    gradient: ['#3797F0', '#4F5BD5'],
+    title: 'Always open',
+    subtitle: 'your chats and saved posts, any time.',
+  },
+  {
+    id: 'stories-moderation',
+    icon: 'timer-outline',
+    gradient: ['#D62976', '#962FBF'],
+    title: 'Stories, in moderation',
+    subtitle: '20 minutes a day.',
+  },
+  {
+    id: 'no-feed',
+    icon: 'eye-off-outline',
+    gradient: ['#FA7E1E', '#D62976'],
+    title: 'No feed, no reels',
+    subtitle: 'nothing to scroll.',
+  },
+] as const;
 
 const LOGIN_MONITOR_JS = `
   (function() {
@@ -111,9 +141,9 @@ const LOGIN_MONITOR_JS = `
 `;
 
 export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSuccess }) => {
-  const { colors, isDark } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
 
+  // Stable Zustand action selectors (no reactive state = no extra re-renders)
   const setInstagramLoggedIn = useAppStore((state) => state.setInstagramLoggedIn);
   const setDemoMode = useAppStore((state) => state.setDemoMode);
 
@@ -122,14 +152,18 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
   const webViewRef = useRef<WebView>(null);
   const isReducedMotion = useReducedMotion();
 
-  // ── Staggered Entrance Animations (80ms spacing) ──
-  const enter0 = useSharedValue(isReducedMotion ? 1 : 0); // Wordmark
-  const enter1 = useSharedValue(isReducedMotion ? 1 : 0); // Headline + subtitle
-  const enter2 = useSharedValue(isReducedMotion ? 1 : 0); // Cards carousel
-  const enter3 = useSharedValue(isReducedMotion ? 1 : 0); // Button + privacy notice
+  // ── ONE Short Entrance Animation on Screen Open ──
+  // Fade and 12px rise using opacity and translateY only.
+  // Each element staggered by 70ms, total under 600ms (280ms + 300ms = 580ms).
+  // Plays ONCE, then everything is 100% still.
+  const enter0 = useSharedValue(isReducedMotion ? 1 : 0); // Top: Wordmark + Tagline + Subtitle
+  const enter1 = useSharedValue(isReducedMotion ? 1 : 0); // Feature Row 1
+  const enter2 = useSharedValue(isReducedMotion ? 1 : 0); // Feature Row 2
+  const enter3 = useSharedValue(isReducedMotion ? 1 : 0); // Feature Row 3
+  const enter4 = useSharedValue(isReducedMotion ? 1 : 0); // Bottom: Button + Privacy text
 
-  // Button slow specular shine sweep (every 5 seconds)
-  const buttonShineX = useSharedValue(-screenWidth * 0.7);
+  // Button quick spring scale on press (0.97 spring feedback)
+  const buttonScale = useSharedValue(1);
 
   useEffect(() => {
     if (isReducedMotion) {
@@ -137,75 +171,69 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
       enter1.value = 1;
       enter2.value = 1;
       enter3.value = 1;
+      enter4.value = 1;
       return;
     }
 
-    // Sequence with 80ms staggering
-    enter0.value = withDelay(0, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
-    enter1.value = withDelay(80, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
-    enter2.value = withDelay(160, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
-    enter3.value = withDelay(240, withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) }));
+    const DURATION = 300;
+    const EASING = Easing.out(Easing.cubic);
 
-    // Button slow specular shine sweep loop
-    buttonShineX.value = withRepeat(
-      withSequence(
-        withDelay(
-          3800,
-          withTiming(screenWidth * 1.5, {
-            duration: 1100,
-            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
-          })
-        ),
-        withTiming(-screenWidth * 0.7, { duration: 0 })
-      ),
-      -1,
-      false
-    );
-
-    return () => {
-      cancelAnimation(buttonShineX);
-    };
-  }, [isReducedMotion, enter0, enter1, enter2, enter3, buttonShineX, screenWidth]);
+    enter0.value = withDelay(0, withTiming(1, { duration: DURATION, easing: EASING }));
+    enter1.value = withDelay(70, withTiming(1, { duration: DURATION, easing: EASING }));
+    enter2.value = withDelay(140, withTiming(1, { duration: DURATION, easing: EASING }));
+    enter3.value = withDelay(210, withTiming(1, { duration: DURATION, easing: EASING }));
+    enter4.value = withDelay(280, withTiming(1, { duration: DURATION, easing: EASING }));
+  }, [isReducedMotion, enter0, enter1, enter2, enter3, enter4]);
 
   const animStyle0 = useAnimatedStyle(() => ({
     opacity: enter0.value,
-    transform: [{ translateY: interpolate(enter0.value, [0, 1], [22, 0]) }],
+    transform: [{ translateY: interpolate(enter0.value, [0, 1], [12, 0]) }],
   }));
 
   const animStyle1 = useAnimatedStyle(() => ({
     opacity: enter1.value,
-    transform: [{ translateY: interpolate(enter1.value, [0, 1], [22, 0]) }],
+    transform: [{ translateY: interpolate(enter1.value, [0, 1], [12, 0]) }],
   }));
 
   const animStyle2 = useAnimatedStyle(() => ({
     opacity: enter2.value,
-    transform: [{ translateY: interpolate(enter2.value, [0, 1], [22, 0]) }],
+    transform: [{ translateY: interpolate(enter2.value, [0, 1], [12, 0]) }],
   }));
 
   const animStyle3 = useAnimatedStyle(() => ({
     opacity: enter3.value,
-    transform: [{ translateY: interpolate(enter3.value, [0, 1], [22, 0]) }],
+    transform: [{ translateY: interpolate(enter3.value, [0, 1], [12, 0]) }],
   }));
 
-  const animButtonShineStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: buttonShineX.value },
-      { rotate: '25deg' },
-    ],
+  const animStyle4 = useAnimatedStyle(() => ({
+    opacity: enter4.value,
+    transform: [{ translateY: interpolate(enter4.value, [0, 1], [12, 0]) }],
   }));
 
-  const handleStartLogin = () => {
+  const animButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }],
+  }));
+
+  const handleButtonPressIn = useCallback(() => {
+    buttonScale.value = withSpring(0.97, { damping: 15, stiffness: 300 });
+  }, [buttonScale]);
+
+  const handleButtonPressOut = useCallback(() => {
+    buttonScale.value = withSpring(1.0, { damping: 15, stiffness: 300 });
+  }, [buttonScale]);
+
+  const handleStartLogin = useCallback(() => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }
     setIsLoginModalVisible(true);
-  };
+  }, []);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = useCallback(() => {
     setIsLoginModalVisible(false);
-  };
+  }, []);
 
-  const handleCompleteLogin = async (username?: string | null) => {
+  const handleCompleteLogin = useCallback(async (username?: string | null) => {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
@@ -213,15 +241,23 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
     await setInstagramLoggedIn(true, username);
     setIsLoginModalVisible(false);
     if (onSuccess) onSuccess();
-  };
+  }, [onSuccess, setDemoMode, setInstagramLoggedIn]);
 
-  const handleNavigationStateChange = async (navState: WebViewNavigation) => {
+  const handleNavigationStateChange = useCallback(async (navState: WebViewNavigation) => {
     const { url } = navState;
     if (!url) return;
 
     let path = '';
     try {
-      path = new URL(url).pathname;
+      const parsed = new URL(url);
+      const host = parsed.hostname.toLowerCase();
+      const isInstagramHost = host === 'instagram.com' || host.endsWith('.instagram.com');
+      const isFacebookHost = host === 'facebook.com' || host.endsWith('.facebook.com');
+
+      if (!isInstagramHost && !isFacebookHost) {
+        return;
+      }
+      path = parsed.pathname;
     } catch {
       path = url;
     }
@@ -243,91 +279,153 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
     if (!isStillInAuth && isPostLoginRoute) {
       await handleCompleteLogin();
     }
-  };
+  }, [handleCompleteLogin]);
+
+  const contentMaxWidth = Math.min(screenWidth - 40, 380);
 
   return (
     <View style={styles.outer}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* ── Background: Smooth Soft Aurora SVG Blobs (Zero Blurry Overdraw) ── */}
-      <AuroraBackground />
+      {/* ── 1. Static Near-Black Background with Fixed Deep Violet Radial Gradient (Never Moves) ── */}
+      <StaticRadialBackground />
 
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <View style={styles.screenFlexContainer}>
+        <View style={styles.screenContainer}>
 
-          {/* ── 1. Top Section (~30%): Hero & Crystal Wordmark ── */}
-          <View style={styles.topSection}>
-            <Animated.View style={[styles.wordmarkWrapper, animStyle0]}>
+          {/* ── 2. Top Section: Wordmark + Tagline + Subtitle (Stagger 0) ── */}
+          <Animated.View style={[styles.topSection, animStyle0]}>
+            <View style={styles.wordmarkWrapper}>
               <UnfeedCrystalWordmark fontSize={62} align="center" loopShine={true} />
-            </Animated.View>
-
-            <Animated.View style={[styles.headerTextWrapper, animStyle1]}>
-              <Text style={styles.headline}>
-                Stop Procrastinating. Reclaim Your Life.
-              </Text>
-              <Text style={styles.subtitle}>
-                Your calm companion to Instagram.
-              </Text>
-            </Animated.View>
-          </View>
-
-          {/* ── 2. Middle Section (~45%): Large Swipeable CrystalGlass Cards ── */}
-          <Animated.View style={[styles.middleSection, animStyle2]}>
-            <WelcomeCarousel paused={isLoginModalVisible} />
+            </View>
+            <Text style={styles.tagline}>
+              Keep the people. Lose the scroll.
+            </Text>
+            <Text style={styles.subtitle}>
+              Chats, saved posts and stories, without the endless feed.
+            </Text>
           </Animated.View>
 
-          {/* ── 3. Bottom Section (~25%): Large CrystalGlass Button & Contrast Privacy ── */}
-          <Animated.View style={[styles.bottomSection, animStyle3]}>
-            <CrystalGlass
-              borderRadius={28}
-              onPress={handleStartLogin}
-              style={styles.loginPillWrapper}
-              contentStyle={styles.loginPillContent}
-              glowColor="#9B33B5"
-            >
-              {/* Soft Instagram Gradient Tint Fill */}
-              <LinearGradient
-                colors={['#3797F0', '#6A53AE', '#9B33B5']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[StyleSheet.absoluteFill, { opacity: 0.88 }]}
-                pointerEvents="none"
-              />
+          {/* ── 3. Middle Section: Static 3 Feature Rows with Prismal Liquid Glass (Staggers 1, 2, 3) ── */}
+          <View style={styles.middleSection}>
+            <View style={[styles.featuresContainer, { width: contentMaxWidth }]}>
+              {/* Feature Row 1 */}
+              <Animated.View style={animStyle1}>
+                <PrismalLiquidGlass
+                  borderRadius={20}
+                  accentColor={FEATURE_ITEMS[0].gradient[0]}
+                  style={styles.featureCardWrapper}
+                  contentStyle={styles.featureCardContent}
+                >
+                  <LinearGradient
+                    colors={FEATURE_ITEMS[0].gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.featureIconContainer}
+                  >
+                    <Ionicons name={FEATURE_ITEMS[0].icon} size={22} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>{FEATURE_ITEMS[0].title}</Text>
+                    <Text style={styles.featureSubtitle}>{FEATURE_ITEMS[0].subtitle}</Text>
+                  </View>
+                </PrismalLiquidGlass>
+              </Animated.View>
 
-              {/* Specular Shine Sweep across the button */}
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.buttonShine,
-                  { width: screenWidth * 0.45, height: 120 },
-                  animButtonShineStyle,
-                ]}
+              {/* Feature Row 2 */}
+              <Animated.View style={animStyle2}>
+                <PrismalLiquidGlass
+                  borderRadius={20}
+                  accentColor={FEATURE_ITEMS[1].gradient[0]}
+                  style={styles.featureCardWrapper}
+                  contentStyle={styles.featureCardContent}
+                >
+                  <LinearGradient
+                    colors={FEATURE_ITEMS[1].gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.featureIconContainer}
+                  >
+                    <Ionicons name={FEATURE_ITEMS[1].icon} size={22} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>{FEATURE_ITEMS[1].title}</Text>
+                    <Text style={styles.featureSubtitle}>{FEATURE_ITEMS[1].subtitle}</Text>
+                  </View>
+                </PrismalLiquidGlass>
+              </Animated.View>
+
+              {/* Feature Row 3 */}
+              <Animated.View style={animStyle3}>
+                <PrismalLiquidGlass
+                  borderRadius={20}
+                  accentColor={FEATURE_ITEMS[2].gradient[0]}
+                  style={styles.featureCardWrapper}
+                  contentStyle={styles.featureCardContent}
+                >
+                  <LinearGradient
+                    colors={FEATURE_ITEMS[2].gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.featureIconContainer}
+                  >
+                    <Ionicons name={FEATURE_ITEMS[2].icon} size={22} color="#FFFFFF" />
+                  </LinearGradient>
+                  <View style={styles.featureTextCol}>
+                    <Text style={styles.featureTitle}>{FEATURE_ITEMS[2].title}</Text>
+                    <Text style={styles.featureSubtitle}>{FEATURE_ITEMS[2].subtitle}</Text>
+                  </View>
+                </PrismalLiquidGlass>
+              </Animated.View>
+            </View>
+          </View>
+
+          {/* ── 4. Bottom Section: Instagram Gradient Pill Button + Privacy Text (Stagger 4) ── */}
+          <Animated.View style={[styles.bottomSection, animStyle4]}>
+            <Animated.View style={[{ width: contentMaxWidth }, animButtonStyle]}>
+              <Pressable
+                onPress={handleStartLogin}
+                onPressIn={handleButtonPressIn}
+                onPressOut={handleButtonPressOut}
+                style={styles.loginButton}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Instagram"
               >
+                {/* Layer 1: Core Instagram Brand Gradient */}
                 <LinearGradient
-                  colors={[
-                    'rgba(255, 255, 255, 0.0)',
-                    'rgba(255, 255, 255, 0.50)',
-                    'rgba(255, 255, 255, 0.0)',
-                  ]}
+                  colors={['#FA7E1E', '#D62976', '#962FBF', '#4F5BD5']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={StyleSheet.absoluteFill}
                 />
-              </Animated.View>
-
-              {/* Button Text & Icon */}
-              <View style={styles.buttonInnerRow}>
-                <Ionicons
-                  name="logo-instagram"
-                  size={20}
-                  color="#FFFFFF"
-                  style={{ marginRight: 10 }}
+                {/* Layer 2: Prismal Specular Sheen */}
+                <LinearGradient
+                  colors={[
+                    'rgba(255, 255, 255, 0.32)',
+                    'rgba(255, 255, 255, 0.08)',
+                    'rgba(255, 255, 255, 0.0)',
+                  ]}
+                  locations={[0, 0.35, 0.70]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 0.8, y: 0.8 }}
+                  style={StyleSheet.absoluteFill}
+                  pointerEvents="none"
                 />
-                <Text style={styles.loginButtonText}>Continue with Instagram</Text>
-              </View>
-            </CrystalGlass>
+                {/* Layer 3: Meniscus Top Shelf Line */}
+                <View style={styles.buttonTopShelf} pointerEvents="none" />
 
-            {/* High-Contrast Crisp Privacy Text */}
+                <View style={styles.buttonInnerRow}>
+                  <Ionicons
+                    name="logo-instagram"
+                    size={22}
+                    color="#FFFFFF"
+                    style={{ marginRight: 10 }}
+                  />
+                  <Text style={styles.loginButtonText}>Continue with Instagram</Text>
+                </View>
+              </Pressable>
+            </Animated.View>
+
             <Text style={styles.privacyNote}>
               {"Unfeed connects securely to Instagram's official mobile site."}{'\n'}
               We never access, intercept, or store your login credentials.
@@ -337,96 +435,110 @@ export const InstagramLoginScreen: React.FC<InstagramLoginScreenProps> = ({ onSu
         </View>
       </SafeAreaView>
 
-      {/* ── Full-Screen Instagram Login WebView Modal ── */}
-      <Modal
-        visible={isLoginModalVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={handleCloseModal}
-      >
-        <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.background }]} edges={['top', 'bottom']}>
-          <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
+      {/* ── 5. Full-Screen Instagram Login WebView Modal (Mounted ONLY when requested) ── */}
+      {isLoginModalVisible && (
+        <Modal
+          visible={isLoginModalVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={handleCloseModal}
+        >
+          <SafeAreaView style={styles.modalContainer} edges={['top', 'bottom']}>
+            <StatusBar barStyle="light-content" />
 
-          {/* Modal Header */}
-          <View style={[styles.modalHeader, { borderBottomColor: colors.divider }]}>
-            <TouchableOpacity
-              activeOpacity={0.7}
-              style={[styles.closeButton, { backgroundColor: isDark ? '#262626' : '#EFEFEF' }]}
-              onPress={handleCloseModal}
-            >
-              <Ionicons name="close" size={20} color={colors.textPrimary} />
-            </TouchableOpacity>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.closeButton}
+                onPress={handleCloseModal}
+              >
+                <Ionicons name="close" size={20} color="#FFFFFF" />
+              </TouchableOpacity>
 
-            <View style={styles.modalTitleContainer}>
-              <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>
-                Instagram Login
-              </Text>
-              <View style={styles.modalLockRow}>
-                <Ionicons name="lock-closed" size={11} color="#10D070" style={{ marginRight: 4 }} />
-                <Text style={[styles.modalSubtitle, { color: '#10D070' }]}>instagram.com</Text>
+              <View style={styles.modalTitleContainer}>
+                <Text style={styles.modalTitle}>
+                  Instagram Login
+                </Text>
+                <View style={styles.modalLockRow}>
+                  <Ionicons name="lock-closed" size={11} color="#10D070" style={{ marginRight: 4 }} />
+                  <Text style={styles.modalSubtitle}>instagram.com</Text>
+                </View>
               </View>
+
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.doneButton}
+                onPress={() => handleCompleteLogin()}
+              >
+                <Text style={styles.doneButtonText}>Done</Text>
+                <Ionicons name="checkmark" size={15} color="#FFFFFF" style={{ marginLeft: 3 }} />
+              </TouchableOpacity>
             </View>
 
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.doneButton, { backgroundColor: colors.accent }]}
-              onPress={() => handleCompleteLogin()}
-            >
-              <Text style={styles.doneButtonText}>Done</Text>
-              <Ionicons name="checkmark" size={15} color="#FFFFFF" style={{ marginLeft: 3 }} />
-            </TouchableOpacity>
-          </View>
-
-          {/* WebView Container */}
-          <View style={styles.modalBody}>
-            <WebView
-              ref={webViewRef}
-              source={{ uri: INSTAGRAM_CONFIG.LOGIN_URL }}
-              userAgent={INSTAGRAM_CONFIG.MOBILE_CHROME_USER_AGENT}
-              sharedCookiesEnabled={true}
-              domStorageEnabled={true}
-              javaScriptEnabled={true}
-              thirdPartyCookiesEnabled={true}
-              injectedJavaScript={LOGIN_MONITOR_JS}
-              onMessage={(event) => {
-                try {
-                  const data = JSON.parse(event.nativeEvent.data);
-                  if (data.type === 'LOGIN_SUCCESS') {
-                    handleCompleteLogin(data.username);
+            {/* WebView Container */}
+            <View style={styles.modalBody}>
+              <WebView
+                ref={webViewRef}
+                source={{ uri: INSTAGRAM_CONFIG.LOGIN_URL }}
+                userAgent={INSTAGRAM_CONFIG.MOBILE_CHROME_USER_AGENT}
+                sharedCookiesEnabled={true}
+                domStorageEnabled={true}
+                javaScriptEnabled={true}
+                thirdPartyCookiesEnabled={true}
+                injectedJavaScript={LOGIN_MONITOR_JS}
+                onMessage={(event) => {
+                  try {
+                    const data = JSON.parse(event.nativeEvent.data);
+                    if (data.type === 'LOGIN_SUCCESS') {
+                      const cleanUsername =
+                        typeof data.username === 'string'
+                          ? data.username.replace(/[^a-zA-Z0-9._]/g, '').slice(0, 30)
+                          : null;
+                      handleCompleteLogin(cleanUsername);
+                    }
+                  } catch {}
+                }}
+                onNavigationStateChange={handleNavigationStateChange}
+                onShouldStartLoadWithRequest={(request) => {
+                  try {
+                    const host = new URL(request.url).hostname.toLowerCase();
+                    return (
+                      host === 'instagram.com' ||
+                      host.endsWith('.instagram.com') ||
+                      host === 'facebook.com' ||
+                      host.endsWith('.facebook.com')
+                    );
+                  } catch {
+                    return false;
                   }
-                } catch {}
-              }}
-              onNavigationStateChange={handleNavigationStateChange}
-              onLoadStart={() => setIsLoadingWebView(true)}
-              onLoadEnd={() => setIsLoadingWebView(false)}
-              style={styles.modalWebView}
-              setSupportMultipleWindows={false}
-              originWhitelist={['*']}
-              allowFileAccess={false}
-              allowFileAccessFromFileURLs={false}
-              allowUniversalAccessFromFileURLs={false}
-              geolocationEnabled={false}
-              mixedContentMode="never"
-            />
+                }}
+                onLoadStart={() => setIsLoadingWebView(true)}
+                onLoadEnd={() => setIsLoadingWebView(false)}
+                style={styles.modalWebView}
+                setSupportMultipleWindows={false}
+                originWhitelist={['https://*.instagram.com', 'https://*.facebook.com', 'https://instagram.com', 'https://facebook.com', 'about:blank']}
+                allowFileAccess={false}
+                allowFileAccessFromFileURLs={false}
+                allowUniversalAccessFromFileURLs={false}
+                geolocationEnabled={false}
+                mixedContentMode="never"
+              />
 
-            {isLoadingWebView && (
-              <View style={styles.modalLoading} pointerEvents="none">
-                <CrystalGlass
-                  useRealBlur={true}
-                  blurIntensity={30}
-                  borderRadius={18}
-                  style={styles.modalLoadingCard}
-                >
-                  <ActivityIndicator size="small" color="#0095F6" />
-                  <Text style={[styles.modalLoadingText, { color: colors.textSecondary }]}>
-                    Connecting to Instagram...
-                  </Text>
-                </CrystalGlass>
-              </View>
-            )}
-          </View>
-        </SafeAreaView>
-      </Modal>
+              {isLoadingWebView && (
+                <View style={styles.modalLoading} pointerEvents="none">
+                  <View style={styles.modalLoadingCard}>
+                    <ActivityIndicator size="small" color="#0095F6" />
+                    <Text style={styles.modalLoadingText}>
+                      Connecting to Instagram...
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
     </View>
   );
 };
@@ -439,71 +551,107 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  screenFlexContainer: {
+  screenContainer: {
     flex: 1,
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
   },
-  // ── Top Section (~30%) ──
+
+  // ── Top Section ──
   topSection: {
-    flex: 0.32,
-    justifyContent: 'center',
     alignItems: 'center',
     paddingTop: 8,
   },
   wordmarkWrapper: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  headerTextWrapper: {
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  headline: {
-    fontSize: 18,
+  tagline: {
+    fontSize: 19,
     fontWeight: '700',
     color: '#FFFFFF',
     textAlign: 'center',
     letterSpacing: -0.3,
-    marginBottom: 4,
+    marginBottom: 5,
   },
   subtitle: {
     fontSize: 13.5,
     color: '#9CA3AF',
     textAlign: 'center',
     letterSpacing: 0.1,
+    lineHeight: 18.5,
+    paddingHorizontal: 12,
   },
-  // ── Middle Section (~45%) ──
+
+  // ── Middle Section: 3 Static Feature Rows ──
   middleSection: {
-    flex: 0.44,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 14,
+  },
+  featuresContainer: {
     width: '100%',
   },
-  // ── Bottom Section (~25%) ──
+  featureCardWrapper: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  featureCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  featureIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  featureTextCol: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  featureTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 2,
+  },
+  featureSubtitle: {
+    color: 'rgba(255, 255, 255, 0.70)',
+    fontSize: 13.5,
+    lineHeight: 18,
+  },
+
+  // ── Bottom Section ──
   bottomSection: {
-    flex: 0.24,
-    justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
     paddingBottom: 8,
-  },
-  loginPillWrapper: {
     width: '100%',
-    maxWidth: 360,
   },
-  loginPillContent: {
+  loginButton: {
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+    position: 'relative',
   },
-  buttonShine: {
+  buttonTopShelf: {
     position: 'absolute',
-    top: -30,
-    left: 0,
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.45)',
   },
   buttonInnerRow: {
     flexDirection: 'row',
@@ -519,15 +667,17 @@ const styles = StyleSheet.create({
   privacyNote: {
     fontSize: 12,
     lineHeight: 16.5,
-    color: 'rgba(255, 255, 255, 0.72)',
+    color: 'rgba(255, 255, 255, 0.65)',
     textAlign: 'center',
     marginTop: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     letterSpacing: 0.1,
   },
+
   // ── Modal Styles ──
   modalContainer: {
     flex: 1,
+    backgroundColor: '#05060A',
   },
   modalHeader: {
     height: 56,
@@ -536,11 +686,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(255, 255, 255, 0.12)',
   },
   closeButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -550,6 +702,7 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 16,
     fontWeight: '600',
+    color: '#FFFFFF',
   },
   modalLockRow: {
     flexDirection: 'row',
@@ -559,6 +712,7 @@ const styles = StyleSheet.create({
   modalSubtitle: {
     fontSize: 11,
     fontWeight: '500',
+    color: '#10D070',
   },
   doneButton: {
     flexDirection: 'row',
@@ -566,6 +720,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderRadius: 16,
+    backgroundColor: '#3797F0',
   },
   doneButtonText: {
     color: '#FFFFFF',
@@ -578,22 +733,28 @@ const styles = StyleSheet.create({
   },
   modalWebView: {
     flex: 1,
+    backgroundColor: '#000000',
   },
   modalLoading: {
     ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    backgroundColor: 'rgba(0, 0, 0, 0.50)',
   },
   modalLoadingCard: {
-    paddingHorizontal: 24,
-    paddingVertical: 18,
+    paddingHorizontal: 22,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    borderRadius: 16,
+    backgroundColor: '#1E202B',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   modalLoadingText: {
     fontSize: 14,
     fontWeight: '500',
+    color: '#FFFFFF',
   },
 });

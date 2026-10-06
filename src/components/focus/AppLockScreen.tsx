@@ -7,6 +7,7 @@ import {
   Modal,
   StatusBar,
   Platform,
+  BackHandler,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -57,7 +58,16 @@ export const AppLockScreen: React.FC<AppLockScreenProps> = ({ isLocked, onUnlock
   if (!isLocked) return null;
 
   return (
-    <Modal visible={isLocked} animationType="fade" transparent={false}>
+    <Modal
+      visible={isLocked}
+      animationType="fade"
+      transparent={false}
+      onRequestClose={() => {
+        if (Platform.OS === 'android') {
+          BackHandler.exitApp();
+        }
+      }}
+    >
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.content}>

@@ -50,6 +50,7 @@ const STORAGE_KEYS = {
   IS_IG_LOGGED_IN: 'unfeed_is_ig_logged_in',
   IG_USERNAME: 'unfeed_ig_username',
   IG_AVATAR_URL: 'unfeed_ig_avatar_url',
+  DEFAULT_LIMIT_INITIALIZED: 'unfeed_default_limit_initialized_v2',
 };
 
 
@@ -171,7 +172,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   savedItems: MOCK_SAVED_ITEMS,
   personalNotes: MOCK_PERSONAL_NOTES,
   focusSettings: {
-    dailyLimitMinutes: null,
+    dailyLimitMinutes: 20,
     sessionTimerMinutes: null,
     sessionStartedAt: null,
     notificationsEnabled: true,
@@ -245,7 +246,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         storageService.getItem<SavedItem[]>(STORAGE_KEYS.SAVED_ITEMS, MOCK_SAVED_ITEMS),
         storageService.getItem<PersonalNote[]>(STORAGE_KEYS.NOTES, MOCK_PERSONAL_NOTES),
         storageService.getItem<FocusSettings>(STORAGE_KEYS.FOCUS_SETTINGS, {
-          dailyLimitMinutes: null,
+          dailyLimitMinutes: 20,
           sessionTimerMinutes: null,
           sessionStartedAt: null,
           notificationsEnabled: true,
@@ -315,6 +316,22 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
       });
 
+      // Ensure daily limit defaults to 20m for fresh installs and upgrades
+      const isDefaultLimitInitialized = await storageService.getItem<boolean>(
+        STORAGE_KEYS.DEFAULT_LIMIT_INITIALIZED,
+        false
+      );
+
+      let effectiveFocus = savedFocus;
+      if (!isDefaultLimitInitialized || effectiveFocus.dailyLimitMinutes === null || effectiveFocus.dailyLimitMinutes === 0) {
+        effectiveFocus = {
+          ...effectiveFocus,
+          dailyLimitMinutes: 20,
+        };
+        await storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, effectiveFocus);
+        await storageService.setItem(STORAGE_KEYS.DEFAULT_LIMIT_INITIALIZED, true);
+      }
+
       set({
         isInitialized: true,
         currentUser: {
@@ -329,8 +346,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         collections: savedCollections,
         savedItems: savedItems,
         personalNotes: savedNotes,
-        focusSettings: savedFocus,
-        isAppLocked: !!savedFocus?.appLockEnabled,
+        focusSettings: effectiveFocus,
+        isAppLocked: !!effectiveFocus?.appLockEnabled,
         screenTime: activeScreenTime,
         isDemoMode: savedIsIgLoggedIn ? false : savedIsDemoMode,
         isInstagramLoggedIn: savedIsIgLoggedIn,
@@ -903,7 +920,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const isLockedTomorrow = get().screenTime.isLockedUntilTomorrow;
     // Anti-cheat only engages when user has actually exhausted their set limit today
     const hasExhaustedActualTime = currentLimit !== null && currentMinutes >= currentLimit;
-    const isLimitExhaustedToday = (isLockedTomorrow || hasExhaustedActualTime) && hasExhaustedActualTime;
+    const isLimitExhaustedToday = isLockedTomorrow || hasExhaustedActualTime;
 
     // ANTI-CHEAT ENFORCEMENT:
     // If times run out like 15 mins already, user can't cheat and switch to 20, 30, 60 or Off to get more time.
@@ -929,6 +946,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       isDailyLimitReached: shouldLock,
     });
     await storageService.setItem(STORAGE_KEYS.FOCUS_SETTINGS, updated);
+    await storageService.setItem(STORAGE_KEYS.DEFAULT_LIMIT_INITIALIZED, true);
     return { success: true };
   },
 

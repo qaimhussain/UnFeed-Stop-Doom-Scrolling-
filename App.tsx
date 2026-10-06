@@ -126,12 +126,7 @@ export default function App() {
   }, [isInitialized, fontsLoaded]);
 
   if (!isInitialized || !fontsLoaded) {
-    return (
-      <View style={styles.loadingContainer}>
-        <UnfeedWordmark fontSize={48} useGradient={true} />
-        <ActivityIndicator size="small" color="#E1306C" style={{ marginTop: 24 }} />
-      </View>
-    );
+    return null;
   }
 
   return (

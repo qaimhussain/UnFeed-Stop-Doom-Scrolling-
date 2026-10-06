@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/immutability */
 import React, { useEffect } from 'react';
 import {
   View,
@@ -44,39 +45,39 @@ export const UnfeedCrystalWordmark: React.FC<UnfeedCrystalWordmarkProps> = ({
   const height = fontSize * 1.5;
 
   // UI-thread specular shine position
-  const shineX = useSharedValue(-width * 0.8);
+  const shineX = useSharedValue(-width * 0.85);
 
   useEffect(() => {
     if (isReducedMotion) {
       cancelAnimation(shineX);
-      shineX.value = -width * 0.8;
+      shineX.value = -width * 0.85;
       return;
     }
 
     if (loopShine) {
-      // Loop every 5.5 seconds: quick smooth sweep across letters, then pause
+      // Loop every 4.5 seconds: smooth luxury light sweep across the letters
       shineX.value = withRepeat(
         withSequence(
           withDelay(
-            4500,
+            3500,
             withTiming(width * 1.6, {
-              duration: 1000,
+              duration: 1100,
               easing: Easing.bezier(0.25, 0.1, 0.25, 1),
             })
           ),
-          withTiming(-width * 0.8, { duration: 0 })
+          withTiming(-width * 0.85, { duration: 0 })
         ),
         -1,
         false
       );
     } else {
-      // Single quiet shimmer on open (for logged-in header pill)
+      // Single quiet shimmer on open
       shineX.value = withSequence(
         withDelay(
-          400,
+          300,
           withTiming(width * 1.6, {
             duration: 1100,
-            easing: Easing.out(Easing.cubic),
+            easing: Easing.bezier(0.25, 0.1, 0.25, 1),
           })
         )
       );
@@ -113,20 +114,7 @@ export const UnfeedCrystalWordmark: React.FC<UnfeedCrystalWordmarkProps> = ({
 
   return (
     <View style={[styles.outerContainer, { width, height }, style]}>
-      {/* ── Soft Ambient Glow Behind Crystal Text ── */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.ambientGlow,
-          {
-            width: width * 0.85,
-            height: height * 0.8,
-            borderRadius: height * 0.4,
-          },
-        ]}
-      />
-
-      {/* ── Crystal Text with Masked Specular Shine ── */}
+      {/* ── Crystal Text with Masked Specular Shine (No pink background pill) ── */}
       <MaskedView
         style={StyleSheet.absoluteFill}
         maskElement={
@@ -157,14 +145,16 @@ export const UnfeedCrystalWordmark: React.FC<UnfeedCrystalWordmarkProps> = ({
         <Animated.View
           style={[
             styles.shineStrip,
-            { width: width * 0.45, height: height * 2.2 },
+            { width: width * 0.40, height: height * 2.5 },
             animatedShineStyle,
           ]}
         >
           <LinearGradient
             colors={[
               'rgba(255, 255, 255, 0.0)',
-              'rgba(255, 255, 255, 0.65)',
+              'rgba(255, 255, 255, 0.20)',
+              'rgba(255, 255, 255, 0.78)',
+              'rgba(255, 255, 255, 0.20)',
               'rgba(255, 255, 255, 0.0)',
             ]}
             start={{ x: 0, y: 0 }}
@@ -187,16 +177,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     backgroundColor: 'transparent',
-  },
-  ambientGlow: {
-    position: 'absolute',
-    backgroundColor: '#D62976',
-    opacity: 0.22,
-    shadowColor: '#D62976',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    elevation: 4,
   },
   shineStrip: {
     position: 'absolute',
