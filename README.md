@@ -13,7 +13,7 @@
   <br />
 
   ### ⬇️ [Click Here to Download Latest APK (v1.0.0)](https://github.com/qaimhussain/UnFeed-Stop-Doom-Scrolling-/raw/main/release/Unfeed.apk)
-  *Direct 1-click download of `Unfeed.apk` directly to your Android device.*
+  *click download of `Unfeed.apk` directly to your Android device.*
 
 </div>
 
@@ -61,7 +61,7 @@ Modern social media apps are engineered around infinite scrolling feedback loops
 3. If prompted, allow *"Install from unknown sources"* for your browser or file manager.
 4. Launch **Unfeed** and enjoy a calm, intentional experience!
 
-> *Alternatively, view the release asset file in the repository: [`release/Unfeed.apk`](release/Unfeed.apk)*
+> *view the release asset file in the repository: [`release/Unfeed.apk`](release/Unfeed.apk)*
 
 ---
 
