@@ -13,7 +13,7 @@
   <br />
 
   ### ⬇️ [Click Here to Download Latest APK (v1.0.0)](https://github.com/qaimhussain/UnFeed-Stop-Doom-Scrolling-/raw/main/release/Unfeed.apk)
-  *click download of `Unfeed.apk` directly to your Android device.*
+  *click to download `Unfeed.apk` directly to your Android device.*
 
 </div>
 
